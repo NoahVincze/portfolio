@@ -1,0 +1,73 @@
+---
+import MotionToggle from './MotionToggle.astro';
+import { site } from '../site';
+
+const year = new Date().getFullYear();
+---
+
+<footer class="site-footer">
+  <div class="container site-footer__inner">
+    <div class="site-footer__contact">
+      <p class="eyebrow">Get in touch</p>
+      <a class="site-footer__email" href={`mailto:${site.email}`}>{site.email}</a>
+    </div>
+    <div class="site-footer__meta">
+      <ul class="site-footer__links">
+        {
+          site.socials.map((social) => (
+            <li>
+              <a href={social.href} rel="me noopener" target="_blank">
+                {social.label}
+                <span class="visually-hidden">(opens in a new tab)</span>
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+      <MotionToggle />
+      <p class="site-footer__copy">© {year} {site.name}</p>
+    </div>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    border-top: 1px solid var(--color-line);
+    padding-block: var(--space-6) var(--space-5);
+  }
+
+  .site-footer__inner {
+    display: grid;
+    gap: var(--space-5);
+  }
+
+  .site-footer__email {
+    display: inline-block;
+    margin-top: var(--space-2);
+    font-size: var(--text-xl);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    text-decoration: none;
+    overflow-wrap: anywhere;
+  }
+
+  .site-footer__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3) var(--space-5);
+    font-size: var(--text-sm);
+  }
+
+  .site-footer__links {
+    display: flex;
+    gap: var(--space-4);
+    list-style: none;
+    padding: 0;
+  }
+
+  .site-footer__copy {
+    color: var(--color-muted);
+  }
+</style>

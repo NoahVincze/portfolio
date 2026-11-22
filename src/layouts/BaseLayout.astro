@@ -1,0 +1,58 @@
+---
+import 'lenis/dist/lenis.css';
+import '../styles/global.css';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import { tokensToCss } from '../motion/tokens';
+import { site } from '../site';
+
+interface Props {
+  /** Page title; the site name is appended. Omit on the home page. */
+  title?: string;
+  description?: string;
+}
+
+const { title, description = site.description } = Astro.props;
+const fullTitle = title ? `${title} · ${site.name}` : site.name;
+const motionTokens = `<style>${tokensToCss()}</style>`;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <Fragment set:html={motionTokens} />
+    {/* Sets <html data-motion> before first paint. Mirrors src/motion/preference.ts. */}
+    <script is:inline>
+      (function () {
+        var stored = null;
+        try {
+          stored = localStorage.getItem('motion-preference');
+        } catch (e) {}
+        var reduced =
+          stored === 'reduced' ||
+          (stored !== 'full' && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+        document.documentElement.dataset.motion = reduced ? 'reduced' : 'full';
+      })();
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <Header />
+    <main id="main" tabindex="-1">
+      <slot />
+    </main>
+    <Footer />
+    <script>
+      import { initMotionPreference } from '../motion/preference';
+      import { startMotion } from '../motion/loop';
+
+      initMotionPreference();
+      startMotion();
+    </script>
+  </body>
+</html>

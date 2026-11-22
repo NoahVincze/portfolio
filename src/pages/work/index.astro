@@ -1,0 +1,55 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import ProjectCard from '../../components/ProjectCard.astro';
+import { getProjects } from '../../projects';
+
+const projects = await getProjects();
+---
+
+<BaseLayout title="Work" description="All projects, newest first.">
+  <section class="section container">
+    <div class="page-head">
+      <h1>Work</h1>
+      <p class="page-head__count">{projects.length} projects</p>
+    </div>
+    <ul class="work-grid" role="list">
+      {
+        projects.map((project) => (
+          <li>
+            <ProjectCard project={project} headingLevel="h2" />
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+</BaseLayout>
+
+<style>
+  .page-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--space-3);
+    margin-bottom: var(--space-6);
+  }
+
+  .page-head h1 {
+    font-size: var(--text-display);
+    line-height: 0.9;
+    letter-spacing: -0.045em;
+  }
+
+  .page-head__count {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--color-muted);
+  }
+
+  .work-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+    gap: var(--space-6) var(--space-5);
+    list-style: none;
+    padding: 0;
+  }
+</style>

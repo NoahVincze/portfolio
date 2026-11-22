@@ -1,0 +1,63 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { site } from '../site';
+---
+
+<BaseLayout title="Contact" description={`Get in touch with ${site.name}.`}>
+  <section class="section container contact">
+    <h1 class="contact__title">Let's talk</h1>
+    <p class="contact__lead">
+      PLACEHOLDER. Say what you are open to: freelance work, full-time roles, collaborations or just
+      a hello.
+    </p>
+    {/* Phase 4: the address scrambles on hover and copies on click. */}
+    <a class="contact__email" href={`mailto:${site.email}`}>{site.email}</a>
+    <ul class="contact__links" role="list">
+      {
+        site.socials.map((social) => (
+          <li>
+            <a href={social.href} rel="me noopener" target="_blank">
+              {social.label}
+              <span class="visually-hidden">(opens in a new tab)</span>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+</BaseLayout>
+
+<style>
+  .contact {
+    display: grid;
+    gap: var(--space-4);
+    justify-items: start;
+  }
+
+  .contact__title {
+    font-size: var(--text-display);
+    line-height: 0.9;
+    letter-spacing: -0.045em;
+  }
+
+  .contact__lead {
+    max-width: 36rem;
+    font-size: var(--text-lg);
+    color: var(--color-muted);
+  }
+
+  .contact__email {
+    margin-top: var(--space-4);
+    font-size: var(--text-xl);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    overflow-wrap: anywhere;
+  }
+
+  .contact__links {
+    display: flex;
+    gap: var(--space-4);
+    list-style: none;
+    padding: 0;
+  }
+</style>
