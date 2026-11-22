@@ -9,7 +9,7 @@ const featured = await getFeaturedProjects();
 
 <BaseLayout>
   <section class="hero container" aria-labelledby="hero-name">
-    {/* Phase 3: the WebGL particle name renders behind this heading. The text stays as real HTML. */}
+    {/* The particle hero (src/motion/hero) draws this name in particles and hides the text; the text stays for screen readers and as the fallback. */}
     <h1 id="hero-name" class="hero__name" data-reveal="lines">{site.name}</h1>
     <p class="hero__tagline" data-reveal="lines" data-reveal-delay="200">{site.tagline}</p>
   </section>

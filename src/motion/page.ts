@@ -63,14 +63,15 @@ function focusMainHeading(): void {
 
 /**
  * Astro replaces <html>'s attributes with the new page's on every swap. Copy over the ones
- * set in the browser (the motion mode and Lenis's state classes) so nothing flips mid-transition.
+ * set in the browser (the motion mode, Lenis's state classes and the hero's `hero-live`)
+ * so nothing flips mid-transition.
  */
 function carryRootState(event: TransitionBeforeSwapEvent): void {
   const current = document.documentElement;
   const next = event.newDocument.documentElement;
   if (current.dataset.motion) next.dataset.motion = current.dataset.motion;
   for (const name of current.classList) {
-    if (name.startsWith('lenis')) next.classList.add(name);
+    if (name.startsWith('lenis') || name.startsWith('hero-')) next.classList.add(name);
   }
 }
 
