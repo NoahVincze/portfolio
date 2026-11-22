@@ -1,0 +1,91 @@
+---
+/**
+ * The footer motion switch. Overrides the system reduced-motion setting and is
+ * remembered on this device. Logic lives in src/motion/preference.ts.
+ */
+---
+
+<div class="motion-toggle">
+  <button type="button" role="switch" aria-checked="true" class="motion-toggle__button" data-motion-toggle>
+    <span class="motion-toggle__label">Animations</span>
+    <span class="motion-toggle__track" aria-hidden="true"><span class="motion-toggle__thumb"></span></span>
+  </button>
+  <span class="motion-toggle__hint" data-motion-hint></span>
+</div>
+
+<script>
+  import { getSetting, initMotionPreference, isReduced, setSetting } from '../motion/preference';
+
+  initMotionPreference();
+
+  for (const root of document.querySelectorAll<HTMLElement>('.motion-toggle')) {
+    const button = root.querySelector<HTMLButtonElement>('[data-motion-toggle]')!;
+    const hint = root.querySelector<HTMLElement>('[data-motion-hint]')!;
+
+    const render = () => {
+      button.setAttribute('aria-checked', String(!isReduced()));
+      hint.textContent = getSetting() === 'system' ? 'Following your system setting' : '';
+    };
+
+    button.addEventListener('click', () => setSetting(isReduced() ? 'full' : 'reduced'));
+    window.addEventListener('motion:change', render);
+    render();
+  }
+</script>
+
+<style>
+  .motion-toggle {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-3);
+  }
+
+  .motion-toggle__button {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-1) 0;
+    background: none;
+    border: 0;
+    cursor: pointer;
+  }
+
+  .motion-toggle__track {
+    position: relative;
+    width: 2.25rem;
+    height: 1.25rem;
+    border-radius: 999px;
+    border: 1px solid var(--color-muted);
+    transition: background-color var(--dur-quick) var(--ease-out);
+  }
+
+  .motion-toggle__thumb {
+    position: absolute;
+    top: 50%;
+    left: 0.1875rem;
+    width: 0.75rem;
+    height: 0.75rem;
+    border-radius: 50%;
+    background: var(--color-muted);
+    transform: translateY(-50%);
+    transition:
+      transform var(--dur-quick) var(--ease-out),
+      background-color var(--dur-quick) var(--ease-out);
+  }
+
+  .motion-toggle__button[aria-checked='true'] .motion-toggle__track {
+    background: var(--color-ink);
+    border-color: var(--color-ink);
+  }
+
+  .motion-toggle__button[aria-checked='true'] .motion-toggle__thumb {
+    background: var(--color-bg);
+    transform: translate(1rem, -50%);
+  }
+
+  .motion-toggle__hint {
+    font-size: var(--text-sm);
+    color: var(--color-muted);
+  }
+</style>

@@ -1,0 +1,73 @@
+---
+import { site } from '../site';
+
+const path = Astro.url.pathname;
+const isCurrent = (href: string) => path === href || path.startsWith(href);
+---
+
+<header class="site-header">
+  <div class="container site-header__inner">
+    <a class="site-header__name" href="/" aria-current={path === '/' ? 'page' : undefined}>
+      {site.name}
+    </a>
+    <nav aria-label="Main">
+      <ul class="site-header__nav">
+        {
+          site.nav.map((item) => (
+            <li>
+              <a href={item.href} aria-current={isCurrent(item.href) ? 'page' : undefined}>
+                {item.label}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<style>
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: color-mix(in srgb, var(--color-bg) 88%, transparent);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--color-line);
+  }
+
+  .site-header__inner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--space-3);
+    min-height: 4rem;
+  }
+
+  .site-header__name {
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    text-decoration: none;
+  }
+
+  .site-header__nav {
+    display: flex;
+    gap: var(--space-4);
+    list-style: none;
+    padding: 0;
+  }
+
+  .site-header__nav a {
+    text-decoration: none;
+  }
+
+  .site-header__nav a[aria-current='page'] {
+    text-decoration: underline;
+  }
+
+  @media (max-width: 30rem) {
+    .site-header__nav {
+      gap: var(--space-3);
+    }
+  }
+</style>
