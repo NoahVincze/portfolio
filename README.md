@@ -2,7 +2,7 @@
 
 Personal portfolio site, built with [Astro](https://astro.build), [GSAP](https://gsap.com), [Lenis](https://lenis.darkroom.engineering) and (from Phase 3) [Three.js](https://threejs.org).
 
-The animation plan lives in the Personal Website Animation Spec. This branch is **Phase 1: Foundation**: real page structure, motion tokens, the shared frame loop and the motion switch, with no decorative animation yet.
+The animation plan lives in the Personal Website Animation Spec. Built so far: **Phase 1** (page structure, motion tokens, shared frame loop, motion switch) and **Phase 2** (line and image reveals, page transitions with the thumbnail-to-cover morph, reading progress bar).
 
 ## Getting started
 
@@ -28,6 +28,8 @@ npm run preview   # serve dist/ locally
 | `src/motion/gsap.ts` | GSAP setup. Import `gsap` and `ScrollTrigger` from here. |
 | `src/motion/loop.ts` | The shared frame loop and Lenis smooth scroll |
 | `src/motion/preference.ts` | The motion switch (system setting + footer toggle) |
+| `src/motion/page.ts` | Per-page lifecycle: builds effects on each page, cleans them up before the next |
+| `src/motion/effects/` | The effects: line reveals, image reveals, progress bar |
 
 ## Motion foundation
 
@@ -36,6 +38,23 @@ npm run preview   # serve dist/ locally
 **One frame loop.** GSAP's ticker drives Lenis, ScrollTrigger and every timeline. Anything that needs a per-frame update (the WebGL canvas in Phase 3) subscribes with `onFrame(callback)` instead of calling `requestAnimationFrame`.
 
 **One motion switch.** `<html data-motion="full|reduced">` says whether motion is on. It follows the system "reduce motion" setting until the visitor uses the Animations toggle in the footer, which is then remembered on that device. Every effect must check it: in CSS with `[data-motion='full']`, in scripts with `isReduced()` and the `motion:change` event. When motion is reduced, Lenis is switched off and the page scrolls natively.
+
+## Adding animation to a page
+
+Mark elements with data attributes; the effects in `src/motion/effects/` pick them up on every page, in both motion modes.
+
+| Attribute | Effect (full motion) | Reduced motion |
+| --- | --- | --- |
+| `data-reveal="lines"` | Text reveals line by line from behind a mask as it scrolls into view. Optional `data-reveal-delay="200"` (ms). Headings in `.prose` get this automatically. | 200 ms fade |
+| `data-reveal="image"` on a frame, `data-reveal-media` on the image inside | The frame wipes in from the bottom, then the image drifts from 1.15 to 1 while scrolling past | 200 ms fade |
+| `data-parallax` on a frame | Drift only, no wipe | Nothing |
+| `transition:name` (Astro) | Elements with the same name on two pages morph into each other during navigation | 200 ms crossfade |
+
+Project cards and project page covers share `transition:name="cover-<project>"`, so the card morphs into the cover. They also carry `data-project-url`, so a cover that just morphed in does not play its wipe again.
+
+To add a new effect, create a file in `src/motion/effects/`, call `definePageEffect(({ reduced }) => { … })`, and import it from `src/motion/effects/index.ts`. Everything created inside (tweens, ScrollTriggers, SplitText) is cleaned up automatically before the next page, and rebuilt when the motion switch changes.
+
+Page transitions are CSS in `src/styles/global.css` (section "Page transitions"), driven by Astro's `<ClientRouter />`. Browsers without the View Transitions API swap pages instantly.
 
 ## Placeholder content
 

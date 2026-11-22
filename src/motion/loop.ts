@@ -47,6 +47,13 @@ export function startMotion(): void {
   gsap.ticker.lagSmoothing(0);
   syncWithPreference();
   window.addEventListener('motion:change', syncWithPreference);
+  // After a client-side navigation, Astro has already scrolled to the top (or restored the
+  // earlier position on back). Drop any inertia from the old page and adopt that position.
+  document.addEventListener('astro:after-swap', () => {
+    if (!lenis) return;
+    lenis.resize();
+    lenis.scrollTo(window.scrollY, { immediate: true, force: true });
+  });
 }
 
 /** Runs `callback` on every frame of the shared loop. Returns a function that stops it. */

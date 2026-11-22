@@ -22,10 +22,11 @@ const { Content } = await render(project);
 ---
 
 <BaseLayout title={title} description={summary}>
+  <div class="progress" data-progress aria-hidden="true"></div>
   <article>
     <header class="project-head container">
       <p class="eyebrow"><a href="/work/">Work</a> / {year}</p>
-      <h1 class="project-head__title">{title}</h1>
+      <h1 class="project-head__title" data-reveal="lines">{title}</h1>
       <p class="project-head__summary">{summary}</p>
       <dl class="project-head__facts">
         <div>
@@ -59,9 +60,17 @@ const { Content } = await render(project);
       </dl>
     </header>
 
-    {/* Phase 2: this cover is the shared element the card thumbnail morphs into. */}
+    {/* The card thumbnail morphs into this cover (same transition name). */}
     <div class="container">
-      <div class="project-cover" style={`--cover: ${accent}`} aria-hidden="true"></div>
+      <div
+        class="project-cover"
+        data-parallax
+        data-project-url={projectUrl(project)}
+        transition:name={`cover-${project.id}`}
+        aria-hidden="true"
+      >
+        <div data-reveal-media style={`--cover: ${accent}`}></div>
+      </div>
     </div>
 
     <div class="section container">
@@ -73,7 +82,7 @@ const { Content } = await render(project);
 
   <nav class="section container next" aria-label="Next project">
     <p class="eyebrow">Next project</p>
-    <a class="next__link" href={projectUrl(next)}>{next.data.title}</a>
+    <a class="next__link" href={projectUrl(next)} data-reveal="lines">{next.data.title}</a>
   </nav>
 </BaseLayout>
 
@@ -114,7 +123,6 @@ const { Content } = await render(project);
   .project-cover {
     aspect-ratio: 16 / 9;
     border-radius: var(--radius);
-    background: var(--cover);
   }
 
   .next {
@@ -123,6 +131,8 @@ const { Content } = await render(project);
   }
 
   .next__link {
+    display: block;
+    width: fit-content;
     font-size: var(--text-xl);
     font-weight: 600;
     letter-spacing: -0.02em;
