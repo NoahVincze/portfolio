@@ -10,8 +10,8 @@ const featured = await getFeaturedProjects();
 <BaseLayout>
   <section class="hero container" aria-labelledby="hero-name">
     {/* Phase 3: the WebGL particle name renders behind this heading. The text stays as real HTML. */}
-    <h1 id="hero-name" class="hero__name">{site.name}</h1>
-    <p class="hero__tagline">{site.tagline}</p>
+    <h1 id="hero-name" class="hero__name" data-reveal="lines">{site.name}</h1>
+    <p class="hero__tagline" data-reveal="lines" data-reveal-delay="200">{site.tagline}</p>
   </section>
 
   <section class="section container" aria-labelledby="selected-work">
@@ -32,7 +32,7 @@ const featured = await getFeaturedProjects();
 
   <section class="section container intro" aria-labelledby="about-teaser">
     <h2 id="about-teaser" class="eyebrow">About</h2>
-    <p class="intro__text">
+    <p class="intro__text" data-reveal="lines">
       PLACEHOLDER. Two sentences about who you are, what you make and what you care about. Keep it
       short; the About page has the full story.
     </p>

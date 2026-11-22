@@ -18,19 +18,25 @@
 
   initMotionPreference();
 
-  for (const root of document.querySelectorAll<HTMLElement>('.motion-toggle')) {
-    const button = root.querySelector<HTMLButtonElement>('[data-motion-toggle]')!;
-    const hint = root.querySelector<HTMLElement>('[data-motion-hint]')!;
-
-    const render = () => {
+  // This script runs once, but the footer is replaced on every client-side navigation.
+  // So clicks are handled by one listener on the document, and the switch is re-rendered
+  // after each page load.
+  function render(): void {
+    for (const button of document.querySelectorAll('[data-motion-toggle]')) {
       button.setAttribute('aria-checked', String(!isReduced()));
+    }
+    for (const hint of document.querySelectorAll('[data-motion-hint]')) {
       hint.textContent = getSetting() === 'system' ? 'Following your system setting' : '';
-    };
-
-    button.addEventListener('click', () => setSetting(isReduced() ? 'full' : 'reduced'));
-    window.addEventListener('motion:change', render);
-    render();
+    }
   }
+
+  document.addEventListener('click', (event) => {
+    if (!(event.target instanceof Element) || !event.target.closest('[data-motion-toggle]')) return;
+    setSetting(isReduced() ? 'full' : 'reduced');
+  });
+  window.addEventListener('motion:change', render);
+  document.addEventListener('astro:page-load', render);
+  render();
 </script>
 
 <style>

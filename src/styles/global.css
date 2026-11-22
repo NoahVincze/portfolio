@@ -208,3 +208,223 @@ main:focus {
 .skip-link:focus-visible {
   transform: none;
 }
+
+/* ---------- Reveals ---------- */
+
+/*
+ * Elements that animate in are hidden only when scripts run (the inline head script sets
+ * data-motion). The effects in src/motion/effects show them. If that code fails to load,
+ * this fallback shows them after 3 s, so content is never held hostage.
+ */
+html[data-motion] :is([data-reveal], .prose h2) {
+  visibility: hidden;
+  animation: reveal-fallback 0s linear 3s forwards;
+}
+
+@keyframes reveal-fallback {
+  to {
+    visibility: visible;
+  }
+}
+
+/* Split lines are spans (valid inside <p>); they must be blocks to clip and move. */
+.reveal-line-mask,
+.reveal-line {
+  display: block;
+}
+
+/* Line masks: extra room below each line so descenders (g, j, p) are not clipped. */
+.reveal-line-mask {
+  padding-bottom: 0.15em;
+  margin-bottom: -0.15em;
+}
+
+/* Image frames clip the media that drifts inside them. */
+[data-reveal='image'],
+[data-parallax] {
+  overflow: hidden;
+}
+
+[data-reveal-media] {
+  width: 100%;
+  height: 100%;
+  background: var(--cover, var(--color-surface));
+  will-change: transform;
+}
+
+/* ---------- Reading progress (project pages) ---------- */
+
+.progress {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 30;
+  height: 3px;
+  background: var(--color-accent);
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  pointer-events: none;
+}
+
+/* Pure CSS where scroll-driven animations exist; src/motion/effects/progress.ts elsewhere. */
+@supports (animation-timeline: scroll()) {
+  .progress {
+    animation: progress-grow linear both;
+  }
+
+  /* A separate rule on purpose: the CSS minifier would otherwise fold the timeline into the
+     `animation` shorthand, which browsers reject, and the bar would never move. */
+  .progress[data-progress] {
+    animation-timeline: scroll(root block);
+  }
+}
+
+@keyframes progress-grow {
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* ---------- Page transitions ---------- */
+
+/*
+ * View Transitions through Astro's ClientRouter. Astro's own rules sit in @layer astro and
+ * switch every transition off under the system reduced-motion setting with !important.
+ * These rules are !important and more specific, so the footer toggle can override the system.
+ */
+
+@keyframes page-leave {
+  to {
+    opacity: 0;
+    transform: translateY(-40px);
+  }
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+}
+
+@keyframes page-leave-back {
+  to {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+}
+
+@keyframes page-enter-back {
+  from {
+    opacity: 0;
+    transform: translateY(-40px);
+  }
+}
+
+@keyframes page-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes page-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/*
+ * A 4:3 card and a 16:9 cover morph into each other: both snapshots fill the moving frame
+ * and crop, so it reads as one image changing shape rather than two stacked boxes.
+ */
+::view-transition-old(*),
+::view-transition-new(*) {
+  height: 100%;
+  object-fit: cover;
+  /* Without this the cropped part of the snapshot still paints outside the frame. */
+  overflow: clip;
+  /* Cropping cuts off the snapshot's own rounded corners, so round the frame instead. */
+  border-radius: var(--radius);
+}
+
+::view-transition-old(root),
+::view-transition-new(root),
+::view-transition-old(site-header),
+::view-transition-new(site-header) {
+  border-radius: 0;
+}
+
+/* Shared elements (project covers) morph: 1000 ms forward, 800 ms back. */
+html[data-motion='full']::view-transition-group(*),
+html[data-motion='full']::view-transition-old(*),
+html[data-motion='full']::view-transition-new(*) {
+  animation-duration: calc(var(--dur-slow) + var(--dur-quick)) !important;
+  animation-timing-function: var(--ease-in-out) !important;
+}
+
+html[data-motion='full'][data-astro-transition='back']::view-transition-group(*),
+html[data-motion='full'][data-astro-transition='back']::view-transition-old(*),
+html[data-motion='full'][data-astro-transition='back']::view-transition-new(*) {
+  animation-duration: var(--dur-slow) !important;
+}
+
+/* The page itself: the old page slides up and fades out, the new one rises in. 800 ms. */
+html[data-motion='full']::view-transition-group(root) {
+  animation-duration: var(--dur-slow) !important;
+}
+
+html[data-motion='full']::view-transition-old(root) {
+  animation: page-leave calc(var(--dur-slow) * 0.6) var(--ease-in) both !important;
+}
+
+html[data-motion='full']::view-transition-new(root) {
+  animation: page-enter var(--dur-slow) var(--ease-out) both !important;
+}
+
+/* Going back reverses the direction. */
+html[data-motion='full'][data-astro-transition='back']::view-transition-old(root) {
+  animation: page-leave-back calc(var(--dur-slow) * 0.6) var(--ease-in) both !important;
+}
+
+html[data-motion='full'][data-astro-transition='back']::view-transition-new(root) {
+  animation: page-enter-back var(--dur-slow) var(--ease-out) both !important;
+}
+
+/*
+ * Covers on only one of the two pages (`:only-child`: no partner to morph into) leave and
+ * arrive with the page instead of hovering over it.
+ */
+html[data-motion='full']::view-transition-old(*):only-child {
+  animation: page-leave calc(var(--dur-slow) * 0.6) var(--ease-in) both !important;
+}
+
+html[data-motion='full']::view-transition-new(*):only-child {
+  animation: page-enter var(--dur-slow) var(--ease-out) both !important;
+}
+
+html[data-motion='full'][data-astro-transition='back']::view-transition-old(*):only-child {
+  animation: page-leave-back calc(var(--dur-slow) * 0.6) var(--ease-in) both !important;
+}
+
+html[data-motion='full'][data-astro-transition='back']::view-transition-new(*):only-child {
+  animation: page-enter-back var(--dur-slow) var(--ease-out) both !important;
+}
+
+/* Reduced motion: everything crossfades in 200 ms and nothing moves. */
+html[data-motion='reduced']::view-transition-group(*) {
+  animation: none !important;
+}
+
+html[data-motion='reduced']::view-transition-old(*) {
+  animation: page-fade-out var(--dur-quick) linear both !important;
+}
+
+html[data-motion='reduced']::view-transition-new(*) {
+  animation: page-fade-in var(--dur-quick) linear both !important;
+}
+
+/* The header stays put in every mode: it swaps instantly. */
+html[data-motion]::view-transition-group(site-header),
+html[data-motion]::view-transition-old(site-header),
+html[data-motion]::view-transition-new(site-header) {
+  animation: none !important;
+}

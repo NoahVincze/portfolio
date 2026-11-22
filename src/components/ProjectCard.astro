@@ -9,11 +9,21 @@ interface Props {
 
 const { project, headingLevel: Heading = 'h3' } = Astro.props;
 const { title, summary, year, tags, accent } = project.data;
+const url = projectUrl(project);
 ---
 
 <article class="card">
-  <a class="card__link" href={projectUrl(project)}>
-    <div class="card__cover" style={`--cover: ${accent}`} aria-hidden="true"></div>
+  <a class="card__link" href={url}>
+    {/* Shares its transition name with the project page cover, so one morphs into the other. */}
+    <div
+      class="card__cover"
+      data-reveal="image"
+      data-project-url={url}
+      transition:name={`cover-${project.id}`}
+      aria-hidden="true"
+    >
+      <div data-reveal-media style={`--cover: ${accent}`}></div>
+    </div>
     <div class="card__meta">
       <Heading class="card__title">{title}</Heading>
       <span class="card__year">{year}</span>
@@ -33,7 +43,6 @@ const { title, summary, year, tags, accent } = project.data;
   .card__cover {
     aspect-ratio: 4 / 3;
     border-radius: var(--radius);
-    background: var(--cover);
     margin-bottom: var(--space-2);
   }
 
