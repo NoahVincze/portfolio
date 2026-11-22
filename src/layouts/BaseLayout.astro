@@ -45,6 +45,8 @@ const motionTokens = `<style>${tokensToCss()}</style>`;
   </head>
   <body>
     <a class="skip-link" href="#main">Skip to content</a>
+    {/* The particle hero. One canvas, kept alive across page navigations. */}
+    <canvas class="hero-canvas" transition:persist="hero-canvas" aria-hidden="true"></canvas>
     <Header />
     <main id="main" tabindex="-1">
       <slot />
@@ -54,11 +56,13 @@ const motionTokens = `<style>${tokensToCss()}</style>`;
       import { initMotionPreference } from '../motion/preference';
       import { startMotion } from '../motion/loop';
       import { startPageEffects } from '../motion/page';
+      import { startHero } from '../motion/hero';
       import '../motion/effects';
 
       initMotionPreference();
       startMotion();
       startPageEffects();
+      startHero();
     </script>
   </body>
 </html>

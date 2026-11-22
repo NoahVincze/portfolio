@@ -2,7 +2,7 @@
 
 Personal portfolio site, built with [Astro](https://astro.build), [GSAP](https://gsap.com), [Lenis](https://lenis.darkroom.engineering) and (from Phase 3) [Three.js](https://threejs.org).
 
-The animation plan lives in the Personal Website Animation Spec. Built so far: **Phase 1** (page structure, motion tokens, shared frame loop, motion switch) and **Phase 2** (line and image reveals, page transitions with the thumbnail-to-cover morph, reading progress bar).
+The animation plan lives in the Personal Website Animation Spec. Built so far: **Phase 1** (page structure, motion tokens, shared frame loop, motion switch), **Phase 2** (line and image reveals, page transitions with the thumbnail-to-cover morph, reading progress bar) and **Phase 3** (the particle hero).
 
 ## Getting started
 
@@ -30,6 +30,7 @@ npm run preview   # serve dist/ locally
 | `src/motion/preference.ts` | The motion switch (system setting + footer toggle) |
 | `src/motion/page.ts` | Per-page lifecycle: builds effects on each page, cleans them up before the next |
 | `src/motion/effects/` | The effects: line reveals, image reveals, progress bar |
+| `src/motion/hero/` | The particle hero: startup (`index.ts`), Three.js scene (`scene.ts`), layouts measured from the page (`layouts.ts`), shaders (`shaders.ts`) |
 
 ## Motion foundation
 
@@ -55,6 +56,18 @@ Project cards and project page covers share `transition:name="cover-<project>"`,
 To add a new effect, create a file in `src/motion/effects/`, call `definePageEffect(({ reduced }) => { … })`, and import it from `src/motion/effects/index.ts`. Everything created inside (tweens, ScrollTriggers, SplitText) is cleaned up automatically before the next page, and rebuilt when the motion switch changes.
 
 Page transitions are CSS in `src/styles/global.css` (section "Page transitions"), driven by Astro's `<ClientRouter />`. Browsers without the View Transitions API swap pages instantly.
+
+## The particle hero
+
+One WebGL canvas sits behind every page and survives client-side navigation (`transition:persist`).
+
+- **Home:** the particles spell the name exactly over the real `<h1>`, which then fades out. The heading stays in the page for screen readers and search engines. Particles near the cursor drift toward it. Scrolling bursts them apart and gathers them onto the first project cover, where they fade as the real cover takes over.
+- **Other pages:** they settle into a faint field behind the content, different on each page.
+- **Navigation:** the particles regroup from wherever they are into the new page's layout (1.4 s) instead of reloading.
+
+Positions are measured from the live page (`layouts.ts`): the name is drawn with the heading's own font onto an offscreen canvas and sampled, so changing the name or its CSS needs no code change.
+
+**Loading and fallbacks.** Three.js is loaded only after the page has loaded and the browser is idle, as a separate chunk (about 130 KB gzipped), and start-up is split into small tasks. With motion reduced it is never downloaded, and the HTML heading is the still version of the hero. Without WebGL, or if the context is lost, the heading simply stays. Phones get 3,000 particles instead of 7,000 and a pixel-ratio cap of 1.5 (2 on desktop). Once the home hero has scrolled away and faded, the scene stops drawing.
 
 ## Placeholder content
 

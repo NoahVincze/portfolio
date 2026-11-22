@@ -65,13 +65,14 @@
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  /* The page colour lives on <html> so the particle canvas can sit between it and the content. */
+  background: var(--color-bg);
 }
 
 body {
   min-height: 100svh;
   display: flex;
   flex-direction: column;
-  background: var(--color-bg);
   color: var(--color-ink);
   font-family: var(--font-sans);
   font-size: var(--text-base);
@@ -250,6 +251,37 @@ html[data-motion] :is([data-reveal], .prose h2) {
   height: 100%;
   background: var(--cover, var(--color-surface));
   will-change: transform;
+}
+
+/* ---------- Particle hero ---------- */
+
+/*
+ * One fixed canvas behind the content (src/motion/hero). It fades in once the first
+ * particles are drawn; on the home page the HTML name then fades out underneath them.
+ * The heading stays in the page for screen readers, search engines and as the still
+ * version of the hero when motion is reduced or WebGL is unavailable.
+ */
+.hero-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--dur-slow) var(--ease-out);
+}
+
+.hero-live .hero-canvas {
+  opacity: 1;
+}
+
+.hero__name {
+  transition: opacity var(--dur-slow) var(--ease-out);
+}
+
+.hero-live .hero__name {
+  opacity: 0;
 }
 
 /* ---------- Reading progress (project pages) ---------- */
