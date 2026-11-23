@@ -138,6 +138,8 @@ export function createHeroScene(canvas: HTMLCanvasElement): HeroScene | null {
     uHighlight: { value: -1 },
     uBall: { value: new Vector3() },
     uTintUpTo: { value: 1 },
+    uBallAlpha: { value: 1 },
+    uHits: { value: space.hits },
   };
 
   const material = new ShaderMaterial({
@@ -292,6 +294,7 @@ export function createHeroScene(canvas: HTMLCanvasElement): HeroScene | null {
       if (e > 0) {
         const group = spaceInfo[i * 2 + 1]!;
         const ballAt = group === GROUP.ball ? uniforms.uBall.value : ZERO;
+        // (Hits only change brightness, which the handover can ignore.)
         const [px, py, persp, depth] = space.project(
           spacePositions[i * 3]! + ballAt.x,
           spacePositions[i * 3 + 1]! + ballAt.y,
@@ -307,6 +310,7 @@ export function createHeroScene(canvas: HTMLCanvasElement): HeroScene | null {
           mix(SPACE_BACK_ALPHA, 1, depth) *
           (halo ? SPACE_HALO_ALPHA : 1) *
           (group === GROUP.surface ? SURFACE_ALPHA : 1) *
+          (group === GROUP.ball ? uniforms.uBallAlpha.value : 1) *
           (hiddenTrail ? 0 : 1);
         sizeE = SPACE_SIZE * persp * (halo ? FIELD_SIZE : 1) * (group === GROUP.ball ? 1.5 : 1);
       }
@@ -467,8 +471,15 @@ export function createHeroScene(canvas: HTMLCanvasElement): HeroScene | null {
         y: pointer.strength * (pointer.y / innerHeight - 0.5),
       };
       space.update(time, toward, spaceScroll.in * state.regroup, Math.max(state.morph, spaceScroll.out));
-      if (layouts.space.kind === 'landscape') updateDescent(layouts.space);
-      else uniforms.uTintUpTo.value = 1;
+      if (layouts.space.kind === 'landscape') {
+        updateDescent(layouts.space);
+        uniforms.uBallAlpha.value = 1;
+      } else {
+        // The embedding space's ball is the visitor's question (Ask), when there is one.
+        uniforms.uTintUpTo.value = 1;
+        uniforms.uBall.value.copy(space.query);
+        uniforms.uBallAlpha.value = space.queryAlpha;
+      }
     }
     uniforms.uSpace.value = state.space;
     uniforms.uEScale.value = space.scale;
@@ -520,6 +531,9 @@ export function createHeroScene(canvas: HTMLCanvasElement): HeroScene | null {
   document.documentElement.addEventListener('pointerleave', () => {
     pointer.target = 0;
   });
+
+  // Ask: a question to fly into the embedding space (or null to clear it).
+  addEventListener('space:query', (event) => space.setQuery(event.detail));
 
   // Work map: the filter re-clustered the projects; the clusters follow (as long as the labels glide).
   addEventListener('work:map', () => {

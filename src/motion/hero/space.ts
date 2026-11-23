@@ -9,8 +9,10 @@
  *   every frame. Nearer labels sit on top and are brighter; a label that would collide
  *   with a more important one (projects first, then experience, then skills) fades back.
  * - Hovering or focusing a label lights up its cluster of particles (`uHighlight`).
+ * - Ask (effects/ask.ts): `setQuery` flies the question in from in front of the cloud to
+ *   its place, then draws faint lines to its nearest neighbours and lights them up.
  */
-import { Matrix3, Vector2 } from 'three';
+import { Matrix3, Vector2, Vector3, Vector4 } from 'three';
 import type { SpaceLayout } from './layouts';
 import { SPACE_CAMERA } from './shaders';
 
@@ -32,6 +34,10 @@ export const VIEW = {
 } satisfies Record<string, ViewPreset>;
 /** Labels within this many pixels of a more important one are faded back. */
 const LABEL_GAP = 3;
+/** Ask: how long the question takes to fly into place (s), and where it starts (in front). */
+const QUERY_FLIGHT = 1.1;
+const QUERY_START: [number, number, number] = [0, 0.15, 1.9];
+const SVG_NS = 'http://www.w3.org/2000/svg';
 
 const smoothstep = (e0: number, e1: number, x: number) => {
   const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0)));
@@ -60,6 +66,12 @@ export interface SpaceView {
   highlight: number;
   /** Progress through the scene (landscape: the descent), which labels with a `progress` wait for. */
   progress: number;
+  /** Ask: where the question is (shader's uBall), how visible (uBallAlpha), its lit neighbours (uHits). */
+  query: Vector3;
+  queryAlpha: number;
+  hits: Vector4;
+  /** Ask: a question to show (null clears it). */
+  setQuery(query: { position: [number, number, number]; hits: number[] } | null): void;
   setup(layout: SpaceLayout | null): void;
   /**
    * Scroll positions (px) where the morph into the space should be complete (the stage
@@ -82,6 +94,9 @@ export function createSpaceView(): SpaceView {
   let labels: LabelState[] = [];
   let labelsShown = false;
   let removeListeners: (() => void) | null = null;
+  let asked: { from: [number, number, number]; to: [number, number, number]; hits: number[]; start: number } | null = null;
+  let links: SVGSVGElement | null = null;
+  let lastTime = 0;
 
   const view: SpaceView = {
     rotation,
@@ -89,6 +104,18 @@ export function createSpaceView(): SpaceView {
     scale: 1,
     highlight: -1,
     progress: 1,
+    query: new Vector3(),
+    queryAlpha: 0,
+    hits: new Vector4(-1, -1, -1, -1),
+
+    setQuery(next) {
+      if (!next) {
+        asked = null;
+        return;
+      }
+      const from = asked && view.queryAlpha > 0.5 ? (view.query.toArray() as [number, number, number]) : QUERY_START;
+      asked = { from, to: next.position, hits: next.hits.slice(0, 4), start: -1 };
+    },
 
     setup(next) {
       view.teardown();
@@ -126,6 +153,12 @@ export function createSpaceView(): SpaceView {
         }
       }
       removeListeners = () => listeners.forEach(([target, type, fn]) => target.removeEventListener(type, fn));
+
+      // Lines from the question to its neighbours (Ask), drawn over the cloud.
+      links = document.createElementNS(SVG_NS, 'svg');
+      links.setAttribute('class', 'space__links');
+      links.setAttribute('aria-hidden', 'true');
+      layout.area.prepend(links);
     },
 
     measure() {
@@ -157,7 +190,10 @@ export function createSpaceView(): SpaceView {
       // Portrait stages (phones) are narrower than the scene is wide once it turns: shrink it.
       view.scale = Math.min(box.width, box.height) * scale * (box.width < box.height ? portrait : 1);
 
-      placeLabels(box, smoothstep(0.75, 1, arrived) * (1 - smoothstep(0, 0.2, leaving)));
+      const visibility = smoothstep(0.75, 1, arrived) * (1 - smoothstep(0, 0.2, leaving));
+      updateQuery(time);
+      placeLabels(box, visibility);
+      drawLinks(box, visibility);
     },
 
     project(x, y, z) {
@@ -176,6 +212,8 @@ export function createSpaceView(): SpaceView {
     teardown() {
       removeListeners?.();
       removeListeners = null;
+      links?.remove();
+      links = null;
       if (layout) {
         layout.stage.classList.remove('is-projected');
         for (const label of labels) {
@@ -192,6 +230,46 @@ export function createSpaceView(): SpaceView {
       view.highlight = -1;
     },
   };
+
+  /** Flies the question in, fades it, and lights its neighbours once it has arrived. */
+  function updateQuery(time: number): void {
+    const dt = Math.min(0.1, Math.max(0, time - lastTime));
+    lastTime = time;
+    const target = asked ? 1 : 0;
+    view.queryAlpha += (target - view.queryAlpha) * Math.min(1, dt * 6);
+    if (!asked) {
+      view.hits.set(-1, -1, -1, -1);
+      return;
+    }
+    if (asked.start < 0) asked.start = time;
+    const t = Math.min(1, (time - asked.start) / QUERY_FLIGHT);
+    const eased = 1 - (1 - t) ** 3;
+    const { from, to } = asked;
+    view.query.set(from[0] + (to[0] - from[0]) * eased, from[1] + (to[1] - from[1]) * eased, from[2] + (to[2] - from[2]) * eased);
+    const [a = -1, b = -1, c = -1, d = -1] = t > 0.65 ? asked.hits : [];
+    view.hits.set(a, b, c, d);
+  }
+
+  /** Faint lines from the question to each lit neighbour. */
+  function drawLinks(box: DOMRect, visibility: number): void {
+    if (!links || !layout) return;
+    const hits = asked && view.hits.x >= 0 ? asked.hits : [];
+    while (links.childElementCount > hits.length) links.lastElementChild!.remove();
+    while (links.childElementCount < hits.length) links.append(document.createElementNS(SVG_NS, 'line'));
+    if (!hits.length) return;
+    const [qx, qy] = view.project(view.query.x, view.query.y, view.query.z);
+    hits.forEach((index, i) => {
+      const point = layout!.points[index];
+      if (!point) return;
+      const [x, y] = view.project(...point.p);
+      const line = links!.children[i] as SVGLineElement;
+      line.setAttribute('x1', (qx - box.left).toFixed(1));
+      line.setAttribute('y1', (qy - box.top).toFixed(1));
+      line.setAttribute('x2', (x - box.left).toFixed(1));
+      line.setAttribute('y2', (y - box.top).toFixed(1));
+      line.setAttribute('stroke-opacity', (visibility * view.queryAlpha * (0.75 - i * 0.15)).toFixed(3));
+    });
+  }
 
   /** Places every label on its point; fades labels that collide with more important ones. */
   function placeLabels(box: DOMRect, visibility: number): void {
@@ -212,8 +290,9 @@ export function createSpaceView(): SpaceView {
       const [x, y, , depth] = view.project(...point.p);
       return { label, x: x - box.left, y: y - box.top, depth };
     });
-    // Most important (then nearest) first: they keep their place.
-    placed.sort((a, b) => b.label.priority - a.label.priority || b.depth - a.depth);
+    // Most important (then nearest) first: they keep their place. A question's matches come first of all.
+    const rank = (label: LabelState) => (label.el.classList.contains('is-hit') ? 10 : label.priority);
+    placed.sort((a, b) => rank(b.label) - rank(a.label) || b.depth - a.depth);
     const taken: [number, number, number, number][] = [];
     for (const { label, x, y, depth } of placed) {
       // Labels right of centre sit to the left of their point, so they stay on screen.

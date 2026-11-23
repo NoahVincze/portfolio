@@ -284,7 +284,18 @@ function spaceLayout(count: number, fieldFrom: number, rand: () => number): Spac
   const positions = new Float32Array(count * 3);
   const info = new Float32Array(count * 2);
   const fieldStart = Math.floor(fieldFrom * count);
+  // A few halo particles are the "question" for Ask: a small ball, hidden until asked.
+  const ballEnd = fieldStart + Math.round(count * 0.02);
+  for (let i = fieldStart; i < ballEnd; i++) {
+    const r = 0.04 * Math.cbrt(rand());
+    const theta = 2 * Math.PI * rand();
+    const phi = Math.acos(2 * rand() - 1);
+    positions.set([r * Math.sin(phi) * Math.cos(theta), r * Math.cos(phi), r * Math.sin(phi) * Math.sin(theta)], i * 3);
+    info[i * 2] = 0.0001;
+    info[i * 2 + 1] = GROUP.ball;
+  }
   for (let i = 0; i < count; i++) {
+    if (i >= fieldStart && i < ballEnd) continue;
     const index = pick();
     const point = points[index]!;
     let spread: number = SPACE_SPREAD[point.k] ?? 0.04;

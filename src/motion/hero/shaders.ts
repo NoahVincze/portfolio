@@ -68,6 +68,8 @@ export const vertexShader = /* glsl */ `
   uniform float uSizeE;
   uniform float uHighlight;
   uniform vec3 uBall;
+  uniform float uBallAlpha;
+  uniform vec4 uHits;
   uniform float uTintUpTo;
 
   attribute vec2 aA;
@@ -123,7 +125,9 @@ export const vertexShader = /* glsl */ `
     vec2 posE = uECenter + vec2(spun.x, -spun.y) * uEScale * persp;
     float depth = clamp(spun.z * 0.5 + 0.5, 0.0, 1.0); // 0 at the back, 1 at the front
     float isHalo = isGroup(${GROUP.halo.toFixed(1)});
-    float lit = step(-0.5, aEInfo.y) * (1.0 - step(0.5, abs(aEInfo.y - uHighlight)));
+    // Lit: the hovered point, or one of a question's nearest neighbours (uHits, -1 for none).
+    vec4 isHit = vec4(1.0) - step(vec4(0.5), abs(vec4(aEInfo.y) - uHits));
+    float lit = step(-0.5, aEInfo.y) * max(1.0 - step(0.5, abs(aEInfo.y - uHighlight)), max(max(isHit.x, isHit.y), max(isHit.z, isHit.w)));
     float reached = step(0.0001, aEInfo.x) * step(aEInfo.x, uTintUpTo);
 
     // Morph between the page's layouts (by way of the space), bursting outward halfway.
@@ -152,7 +156,7 @@ export const vertexShader = /* glsl */ `
     float alphaA = uAlphaA * mix(1.0, FIELD_ALPHA * edge * twinkle, isField);
     float sizeA = uSizeA * mix(1.0, FIELD_SIZE, isField);
     float alphaE = uAlphaE * mix(SPACE_BACK_ALPHA, 1.0, depth) * mix(1.0, SPACE_HALO_ALPHA, isHalo)
-      * mix(1.0, SURFACE_ALPHA, isSurface) * mix(1.0, reached, isTrail) * (1.0 + lit);
+      * mix(1.0, SURFACE_ALPHA, isSurface) * mix(1.0, reached, isTrail) * mix(1.0, uBallAlpha, isBall) * (1.0 + lit);
     float sizeE = uSizeE * persp * mix(1.0, FIELD_SIZE, isHalo) * (1.0 + 0.8 * lit + 0.5 * isBall);
     vec3 colorE = mix(uColorE, uAccent, max(reached, lit));
 

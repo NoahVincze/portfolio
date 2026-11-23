@@ -4,14 +4,14 @@
  */
 import { getProjects } from '../projects';
 import { skills, timeline } from '../profile';
-import { buildCorpus } from './corpus';
+import { buildCorpus, type CorpusItem } from './corpus';
 import { buildSpace, type EmbeddingCache, type EmbeddingSpace } from './space';
 
 const cacheFiles = import.meta.glob<EmbeddingCache>('../data/embeddings.json', { eager: true, import: 'default' });
 
-let space: Promise<EmbeddingSpace> | null = null;
+let space: Promise<EmbeddingSpace & { items: CorpusItem[] }> | null = null;
 
-export function getEmbeddingSpace(): Promise<EmbeddingSpace> {
+export function getEmbeddingSpace(): Promise<EmbeddingSpace & { items: CorpusItem[] }> {
   space ??= (async () => {
     const projects = (await getProjects()).map((project) => ({
       id: project.id,
@@ -28,7 +28,7 @@ export function getEmbeddingSpace(): Promise<EmbeddingSpace> {
           'the hashed fallback. Run `npm run embed` and commit src/data/embeddings.json.',
       );
     }
-    return result;
+    return { ...result, items };
   })();
   return space;
 }

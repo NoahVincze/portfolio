@@ -14,3 +14,4 @@ import './contact';
 import './physics-chips';
 import './marquee';
 import './playground';
+import './ask';
