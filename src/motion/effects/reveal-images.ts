@@ -1,6 +1,12 @@
 /**
- * Images wipe in from the bottom as they enter the viewport, then drift (scale 1.15 to 1)
- * while the visitor scrolls past. Reduced motion: a short fade, no drift.
+ * Images reveal as they enter the viewport, then drift (scale 1.15 to 1) while the visitor
+ * scrolls past. Reduced motion: a short fade, no drift.
+ *
+ * The reveal is a diffusion model's sampling run when the WebGL cover renderer is running
+ * (src/motion/hero/covers.ts): noise wipes up from the bottom and is denoised step by step
+ * into the image. Without it (WebGL unavailable or not loaded yet), the image itself wipes
+ * up from the bottom. The choice is made when the reveal starts, not when the page loads,
+ * because the renderer arrives after the page is idle.
  * Images are visible in the HTML; only ones the visitor has not seen yet are hidden for
  * their entrance, so the page's largest image is never held back by the scripts.
  *
@@ -9,13 +15,15 @@
  *     <div data-reveal-media>…</div>                         the image that drifts
  *   </div>
  * `data-parallax` on a frame gives it the drift without the wipe (used on project covers,
- * which arrive through the page-transition morph). `data-project-url` ties a frame to its
+ * which arrive through the page-transition morph). When such a cover did not morph in, it
+ * gets a diffusion reveal in place (noise fading in, then denoising), if the renderer runs. `data-project-url` ties a frame to its
  * project, so a cover that morphs in from the previous page skips the wipe.
  *
  * Frames inside a sideways-scrolling track (horizontal.ts) are timed to the track's
  * movement instead of the vertical scroll, unless they are already on screen when it starts.
  */
-import { gsap } from '../gsap';
+import { diffusion } from '../diffusion';
+import { gsap, ScrollTrigger } from '../gsap';
 import { definePageEffect } from '../page';
 import { gsapEase, seconds } from '../tokens';
 import { horizontalAnimationFor } from './horizontal-registry';
@@ -70,7 +78,19 @@ definePageEffect(({ reduced, morphed, painted }) => {
       gsap.fromTo(
         frame,
         { clipPath: HIDDEN },
-        { clipPath: SHOWN, duration: seconds('slow'), ease: gsapEase.out, clearProps: 'clipPath', scrollTrigger: enter },
+        {
+          clipPath: SHOWN,
+          duration: seconds('slow'),
+          ease: gsapEase.out,
+          clearProps: 'clipPath',
+          scrollTrigger: {
+            ...enter,
+            // The shader takes over: un-clip the frame at once and let the noise wipe in instead.
+            onEnter: (self) => {
+              if (onScreen(frame) && diffusion()?.reveal(frame, { wipe: true })) self.animation?.progress(1);
+            },
+          },
+        },
       );
     }
     drift(frame, driftTrigger);
@@ -78,7 +98,12 @@ definePageEffect(({ reduced, morphed, painted }) => {
 
   if (!reduced) {
     for (const frame of document.querySelectorAll<HTMLElement>('[data-parallax]')) {
-      drift(frame, triggers(frame).drift, 1.1);
+      const { enter, drift: driftTrigger } = triggers(frame);
+      const morphedIn = Boolean(frame.dataset.projectUrl && morphed.has(frame.dataset.projectUrl));
+      if (!morphedIn && !(painted && onScreen(frame))) {
+        ScrollTrigger.create({ ...enter, onEnter: () => void diffusion()?.reveal(frame, { wipe: false }) });
+      }
+      drift(frame, driftTrigger, 1.1);
     }
   }
 });

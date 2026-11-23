@@ -2,7 +2,7 @@
 
 Personal portfolio site, built with [Astro](https://astro.build), [GSAP](https://gsap.com), [Lenis](https://lenis.darkroom.engineering) and (from Phase 3) [Three.js](https://threejs.org).
 
-The animation plan lives in the Personal Website Animation Spec. Built so far: **Phase 1** (page structure, motion tokens, shared frame loop, motion switch), **Phase 2** (line and image reveals, page transitions with the thumbnail-to-cover morph, reading progress bar), **Phase 3** (the particle hero), **Phase 4** (custom cursor, magnetic links, first-visit intro, sideways work section, cover hover shader, work filter, self-drawing timeline, contact scramble and copy) and **Phase 5** (physics skill chips, scroll-speed footer marquee).
+The animation plan lives in the Personal Website Animation Spec. Built so far: **Phase 1** (page structure, motion tokens, shared frame loop, motion switch), **Phase 2** (line and image reveals, page transitions with the thumbnail-to-cover morph, reading progress bar), **Phase 3** (the particle hero), **Phase 4** (custom cursor, magnetic links, first-visit intro, sideways work section, cover hover shader, work filter, self-drawing timeline, contact scramble and copy) **Phase 5** (physics skill chips, scroll-speed footer marquee) and, in progress, **Phase 6** (an AI-themed visual identity: so far the diffusion cover shader, where covers are generated from Gaussian noise step by step, the cursor is a noise brush, and the home hero's particles land on the first cover as noise that denoises with the scroll).
 
 ## Getting started
 
@@ -51,7 +51,8 @@ npx playwright screenshot --viewport-size=1200,630 scripts/og-image.html public/
 | `src/motion/effects/` | Per-page effects: reveals, progress bar, magnetic links, sideways section, filter, timeline, contact, physics chips, footer marquee |
 | `src/motion/intro.ts` | First-visit intro (the animation itself is CSS, `.site-intro` in `global.css`) |
 | `src/motion/cursor.ts` | Custom cursor |
-| `src/motion/hero/` | The particle hero: startup (`index.ts`), Three.js scene (`scene.ts`), layouts measured from the page (`layouts.ts`), shaders (`shaders.ts`), cover hover effect (`hover.ts`) |
+| `src/motion/hero/` | The particle hero: startup (`index.ts`), Three.js scene (`scene.ts`), layouts measured from the page (`layouts.ts`), shaders (`shaders.ts`), diffusion cover shader for reveals, hover and the hero landing (`covers.ts`) |
+| `src/motion/diffusion.ts` | How page effects reach the cover shader, which loads lazily with the hero; returns null when it is unavailable, so effects fall back to CSS |
 
 ## Motion foundation
 

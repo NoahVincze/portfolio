@@ -7,7 +7,8 @@
  * Other pages: they settle into a faint field behind the content.
  * Navigation: the canvas persists across pages and the particles regroup into the new
  * page's layout instead of reloading.
- * Project covers: a ripple and RGB-split hover effect (./hover.ts) on the same canvas.
+ * Project covers: diffusion reveals, a noise brush on hover and, on home, the cover the
+ * particles land on denoising in step with the scroll (./covers.ts), on the same canvas.
  *
  * This module pulls in Three.js, so it is only ever loaded with a dynamic import
  * (see ./index.ts), after the page has painted and the browser is idle.
@@ -27,7 +28,8 @@ import {
 import { gsap, ScrollTrigger } from '../gsap';
 import { onFrame } from '../loop';
 import { gsapEase, seconds } from '../tokens';
-import { createHoverEffect } from './hover';
+import { provideDiffusion } from '../diffusion';
+import { createCoverEffects } from './covers';
 import { readPageLayouts, scatteredPositions, type Layout, type PageLayouts, type RGB } from './layouts';
 import { FIELD_ALPHA, FIELD_SIZE, fragmentShader, vertexShader } from './shaders';
 
@@ -47,6 +49,13 @@ const smoothstep = (e0: number, e1: number, x: number) => {
 /** GLSL's mod (always positive for a positive divisor), unlike JavaScript's %. */
 const mod = (x: number, y: number) => x - y * Math.floor(x / y);
 const NO_FIELD = { from: 1, rect: [0, 0, 1, 1] as [number, number, number, number] };
+/**
+ * Home: the part of the scroll morph (0 to 1) over which the first cover denoises. The
+ * particles start fading onto it at 0.8 (see the shaders), so the noise is fully formed
+ * underneath them by then and the image is clean when the morph ends.
+ */
+const LANDING_FROM = 0.74;
+const LANDING_TO = 0.98;
 
 export function createHeroScene(canvas: HTMLCanvasElement): HeroScene | null {
   const phone = matchMedia('(max-width: 767px)').matches || (navigator.hardwareConcurrency ?? 8) <= 4;
@@ -116,10 +125,9 @@ export function createHeroScene(canvas: HTMLCanvasElement): HeroScene | null {
   });
   const points = new Points(geometry, material);
   points.frustumCulled = false;
-  const hover = createHoverEffect(uniforms.uViewport.value, maxPixelRatio);
-  hover.mesh.renderOrder = 1; // a hovered cover sits above the dust, like the HTML images do
+  const covers = createCoverEffects(uniforms.uViewport.value, maxPixelRatio);
   const scene = new Scene();
-  scene.add(hover.mesh, points);
+  scene.add(covers.group, points);
   const camera = new OrthographicCamera(-1, 1, 1, -1, 0, 1); // projection happens in the shader
 
   // ---- State
@@ -290,11 +298,14 @@ export function createHeroScene(canvas: HTMLCanvasElement): HeroScene | null {
     uniforms.uMorph.value = state.morph;
     uniforms.uRegroup.value = state.regroup;
 
-    const hovering = hover.update(time);
+    // Home: the particles land on the first cover as noise, which then denoises with the scroll.
+    const landing = layouts?.fadeOnArrival ? layouts.morphEnd : null;
+    covers.scrub(landing, landing ? 1 - smoothstep(LANDING_FROM, LANDING_TO, state.morph) : 0);
+    const coversDrawn = covers.update(time);
 
-    // Nothing to show (home, scrolled past the hero, particles faded, no cover hovered):
+    // Nothing to show (home, scrolled past the hero, particles faded, no cover drawn):
     // draw one empty frame, then rest.
-    const idle = !hovering && Boolean(layouts?.fadeOnArrival) && state.morph >= 0.999 && state.regroup >= 1;
+    const idle = !coversDrawn && Boolean(layouts?.fadeOnArrival) && state.morph >= 0.999 && state.regroup >= 1;
     if (idle && idleFrameDrawn) return;
     idleFrameDrawn = idle;
     renderer.render(scene, camera);
@@ -370,6 +381,8 @@ export function createHeroScene(canvas: HTMLCanvasElement): HeroScene | null {
     const from = handoff ? viewportPositions(layouts!.a) : scatteredPositions(count);
     applyPrev(from, restingStyles(layouts!.a, 0), layouts!.a.color);
     regroup();
+    covers.start();
+    provideDiffusion(covers);
     stopRendering = onFrame(render);
     requestAnimationFrame(() => {
       if (running) document.documentElement.classList.add(LIVE_CLASS);
@@ -384,13 +397,14 @@ export function createHeroScene(canvas: HTMLCanvasElement): HeroScene | null {
     regroupTween?.kill();
     morphTrigger?.kill();
     morphTrigger = null;
-    hover.release();
+    provideDiffusion(null);
+    covers.stop();
     document.documentElement.classList.remove(LIVE_CLASS);
   }
 
   if (import.meta.env.DEV) {
     Object.assign(window, {
-      __hero: { state, count, running: () => running, layouts: () => layouts, pointer, uniforms },
+      __hero: { state, count, running: () => running, layouts: () => layouts, pointer, uniforms, covers },
     });
   }
 
@@ -400,6 +414,8 @@ export function createHeroScene(canvas: HTMLCanvasElement): HeroScene | null {
       await renderer.compileAsync(scene, camera);
     } catch {
       // Compiles on the first frame instead.
+    } finally {
+      covers.warmed();
     }
   }
 

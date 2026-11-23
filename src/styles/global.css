@@ -249,6 +249,7 @@ html[data-intro] .hero__name {
 /* Image frames clip the media that drifts inside them. */
 [data-reveal='image'],
 [data-parallax] {
+  position: relative;
   overflow: hidden;
 }
 
@@ -265,9 +266,31 @@ html[data-intro] .hero__name {
   object-fit: cover;
 }
 
-/* While the WebGL hover effect draws a cover, the HTML image steps aside (see hero/hover.ts). */
-.is-shader-active [data-reveal-media] {
+/* While the WebGL canvas draws a cover, the HTML image steps aside (see hero/covers.ts). */
+.is-diffusing [data-reveal-media] {
   visibility: hidden;
+}
+
+/* The sampling step counter shown on a cover while it denoises. */
+.diffusion-step {
+  position: absolute;
+  left: var(--space-2);
+  bottom: var(--space-2);
+  padding: 0.2em 0.55em;
+  border-radius: 999px;
+  background: rgb(10 10 10 / 0.62);
+  color: #f3f1ec;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+
+.diffusion-step.is-done {
+  opacity: 0;
 }
 
 /* ---------- Particle hero ---------- */
