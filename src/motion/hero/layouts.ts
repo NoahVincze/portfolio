@@ -244,7 +244,7 @@ export function scatteredPositions(count: number, rand = Math.random): Float32Ar
 
 /** How many particles each kind of point gets, relative to the others, and how tight they sit. */
 const SPACE_WEIGHT = { project: 12, experience: 5, skill: 5, passage: 1.2 } as const;
-const SPACE_SPREAD = { project: 0.05, experience: 0.035, skill: 0.035, passage: 0.07 } as const;
+const SPACE_SPREAD = { project: 0.04, experience: 0.03, skill: 0.03, passage: 0.06 } as const;
 const LABEL_PRIORITY = { project: 3, experience: 2, skill: 1, passage: 0 } as const;
 
 function gaussian(rand: () => number): number {

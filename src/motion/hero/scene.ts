@@ -305,7 +305,7 @@ export function createHeroScene(canvas: HTMLCanvasElement): HeroScene | null {
           (group === GROUP.surface ? SURFACE_ALPHA : 1) *
           (group === GROUP.ball ? uniforms.uBallAlpha.value : 1) *
           (hiddenTrail ? 0 : 1);
-        sizeE = SPACE_SIZE * persp * (halo ? FIELD_SIZE : 1) * (group === GROUP.ball ? 1.5 : 1);
+        sizeE = uniforms.uSizeE.value * persp * (halo ? FIELD_SIZE : 1) * (group === GROUP.ball ? 1.5 : 1);
       }
       const toward = Math.sin(Math.PI * e) * (40 + 200 * z);
       const tx = mix(ax, ex, e) + dx * toward;
@@ -476,6 +476,9 @@ export function createHeroScene(canvas: HTMLCanvasElement): HeroScene | null {
     }
     uniforms.uSpace.value = state.space;
     uniforms.uEScale.value = space.scale;
+    // A bigger embedding space spreads the same particles over more pixels: draw them a little larger.
+    uniforms.uSizeE.value =
+      layouts?.space?.kind === 'space' ? SPACE_SIZE * Math.min(1.5, Math.max(0.85, space.scale / 260)) : SPACE_SIZE;
     uniforms.uHighlight.value = space.highlight;
 
     const coversDrawn = covers.update(time);
