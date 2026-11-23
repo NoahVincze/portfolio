@@ -3,6 +3,9 @@
  * Full motion: the grid reflows with GSAP Flip (cards slide to their new places, others
  * fade out and in). Reduced motion: the grid changes instantly.
  *
+ * Every change is announced with a `work:filter` event on window (detail: the tag), which
+ * the work map (work-map.ts) follows.
+ *
  * The buttons only show when JavaScript runs (CSS keys off <html data-motion>), so without
  * it visitors simply see every project.
  */
@@ -29,6 +32,7 @@ definePageEffect(({ reduced }) => {
     for (const button of buttons) button.setAttribute('aria-pressed', String(button.dataset.filter === tag));
     const shown = items.filter((item) => matches(item, tag)).length;
     if (count) count.textContent = `${shown} ${shown === 1 ? 'project' : 'projects'}`;
+    window.dispatchEvent(new CustomEvent('work:filter', { detail: tag }));
 
     if (reduced) {
       for (const item of items) item.hidden = !matches(item, tag);

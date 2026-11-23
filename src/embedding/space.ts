@@ -121,6 +121,11 @@ function fitUnitSphere(points: number[][]): number[][] {
   return scaled.map((p) => p.map((x) => x / radius));
 }
 
+/** PCA to `k` dimensions, scaled for display to fit the unit sphere (see fitUnitSphere). */
+export function projectForDisplay(vectors: number[][], k: number): number[][] {
+  return fitUnitSphere(pca(vectors, k));
+}
+
 export function buildSpace(items: readonly CorpusItem[], cache: EmbeddingCache | null): EmbeddingSpace {
   const usable = cache && cache.model === MODEL && cache.dims === DIMENSIONS ? cache.vectors : {};
   const cached = items.map((item) => usable[textKey(item.text)]);
@@ -128,7 +133,7 @@ export function buildSpace(items: readonly CorpusItem[], cache: EmbeddingCache |
   const source = items.length > 0 && missing === 0 ? 'model' : 'hashed';
   const vectors = source === 'model' ? (cached as number[][]) : items.map((item) => hashedEmbedding(item.text));
 
-  const positions = fitUnitSphere(pca(vectors, 3));
+  const positions = projectForDisplay(vectors, 3);
   const points = items.map((item, i) => ({
     id: item.id,
     kind: item.kind,

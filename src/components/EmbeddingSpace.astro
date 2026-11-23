@@ -35,7 +35,7 @@ const percent = (value: number) => `${(50 + value * 42).toFixed(2)}%`;
       {
         labelled.map(({ point, index }) => (
           <li
-            class={`space__point space__point--${point.kind}`}
+            class:list={['space__point', `space__point--${point.kind}`, { 'is-flipped': point.position[0] > 0.25 }]}
             data-space-point={index}
             style={`--x: ${percent(point.position[0])}; --y: ${percent(-point.position[1])}`}
           >
@@ -94,6 +94,8 @@ const percent = (value: number) => `${(50 + value * 42).toFixed(2)}%`;
     list-style: none;
     padding: 0;
     margin: 0;
+    /* Labels near the edge flip to the inside, and anything left over never scrolls the page. */
+    overflow-x: clip;
   }
 
   .space__point {
@@ -107,6 +109,12 @@ const percent = (value: number) => `${(50 + value * 42).toFixed(2)}%`;
     white-space: nowrap;
     font-size: var(--text-sm);
     line-height: 1.2;
+  }
+
+  /* Points on the right put their label on the left of the dot, so it stays on screen. */
+  .space__point.is-flipped {
+    flex-direction: row-reverse;
+    transform: translate(calc(-100% + 0.3rem), -50%);
   }
 
   /* The static version's dots (the particles replace them once projected). */

@@ -33,7 +33,7 @@ import { gsapEase, seconds } from '../tokens';
 import { provideDiffusion } from '../diffusion';
 import { createCoverEffects } from './covers';
 import { createSpaceView } from './space';
-import { cssColor, readPageLayouts, scatteredPositions, type Layout, type PageLayouts, type RGB } from './layouts';
+import { cssColor, pointLayout, readPageLayouts, scatteredPositions, type Layout, type PageLayouts, type RGB } from './layouts';
 import { FIELD_ALPHA, FIELD_SIZE, fragmentShader, SPACE_BACK_ALPHA, SPACE_HALO_ALPHA, vertexShader } from './shaders';
 
 export interface HeroScene {
@@ -309,10 +309,16 @@ export function createHeroScene(canvas: HTMLCanvasElement): HeroScene | null {
     return { positions, styles, color };
   }
 
-  function regroup(): void {
+  function regroup(duration = seconds('cinematic'), ease = gsapEase.inOut): void {
     regroupTween?.kill();
     state.regroup = 0;
-    regroupTween = gsap.to(state, { regroup: 1, duration: seconds('cinematic'), ease: gsapEase.inOut });
+    regroupTween = gsap.to(state, { regroup: 1, duration, ease });
+  }
+
+  /** Starts a regroup from wherever the particles are on screen right now. */
+  function regroupFromHere(): void {
+    const { positions, styles, color } = displayedState();
+    applyPrev(positions, styles, color);
   }
 
   /**
@@ -436,11 +442,28 @@ export function createHeroScene(canvas: HTMLCanvasElement): HeroScene | null {
     pointer.target = 0;
   });
 
+  // Work map: the filter re-clustered the projects; the clusters follow (as long as the labels glide).
+  addEventListener('work:map', () => {
+    if (!running) return;
+    regroupFromHere();
+    setupPage();
+    regroup();
+  });
+  // Work map: a project was clicked; every particle rushes into its point before the page opens.
+  addEventListener('work:open', (event) => {
+    if (!running) return;
+    regroupFromHere();
+    killTriggers();
+    const accent = cssColor(getComputedStyle(document.documentElement).getPropertyValue('--color-accent'));
+    const point = pointLayout(event.detail.x + scrollX, event.detail.y + scrollY, count, accent);
+    applyLayouts({ a: point, b: point, space: null, fadeOnArrival: false, morphEnd: null });
+    regroup(seconds('base'), gsapEase.in);
+  });
+
   // Freeze the particles where they are just before the page swaps...
   document.addEventListener('astro:before-swap', () => {
     if (!running) return;
-    const { positions, styles, color } = displayedState();
-    applyPrev(positions, styles, color);
+    regroupFromHere();
     regroupTween?.kill();
     state.regroup = 0;
     killTriggers();

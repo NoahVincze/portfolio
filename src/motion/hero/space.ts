@@ -29,6 +29,8 @@ const smoothstep = (e0: number, e1: number, x: number) => {
 
 interface LabelState {
   el: HTMLElement;
+  /** Whether the static layout flips this label (restored on teardown). */
+  flipped: boolean;
   index: number;
   priority: number;
   width: number;
@@ -79,6 +81,7 @@ export function createSpaceView(): SpaceView {
       layout.stage.classList.add('is-projected');
       labels = layout.labels.map(({ el, index, priority }) => ({
         el,
+        flipped: el.classList.contains('is-flipped'),
         index,
         priority,
         width: el.offsetWidth,
@@ -162,6 +165,7 @@ export function createSpaceView(): SpaceView {
           label.el.style.removeProperty('pointer-events');
           label.el.style.removeProperty('z-index');
           label.el.classList.remove('is-active');
+          label.el.classList.toggle('is-flipped', label.flipped);
         }
       }
       layout = null;
@@ -193,12 +197,16 @@ export function createSpaceView(): SpaceView {
     placed.sort((a, b) => b.label.priority - a.label.priority || b.depth - a.depth);
     const taken: [number, number, number, number][] = [];
     for (const { label, x, y, depth } of placed) {
-      const rect: [number, number, number, number] = [x - LABEL_GAP, y - label.height / 2 - LABEL_GAP, x + label.width + LABEL_GAP, y + label.height / 2 + LABEL_GAP];
+      // Labels right of centre sit to the left of their point, so they stay on screen.
+      const flip = x > box.width * 0.6;
+      const left = flip ? x - label.width : x;
+      const rect: [number, number, number, number] = [left - LABEL_GAP, y - label.height / 2 - LABEL_GAP, left + label.width + LABEL_GAP, y + label.height / 2 + LABEL_GAP];
       const blocked = taken.some((t) => rect[0] < t[2] && rect[2] > t[0] && rect[1] < t[3] && rect[3] > t[1]);
       if (!blocked) taken.push(rect);
       const opacity = visibility * (0.35 + 0.65 * depth) * (blocked && view.highlight !== label.index ? 0.15 : 1);
       const { style } = label.el;
-      style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0) translate(-0.15rem, -50%)`;
+      label.el.classList.toggle('is-flipped', flip);
+      style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0) ${flip ? 'translate(calc(-100% + 0.15rem), -50%)' : 'translate(-0.15rem, -50%)'}`;
       style.opacity = opacity.toFixed(3);
       // Faded labels cannot be clicked by accident. (Opacity, not visibility, so keyboard
       // focus always reaches the links; focusing one scrolls the space into view.)
