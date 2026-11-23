@@ -10,3 +10,5 @@ import './magnetic';
 import './filter';
 import './timeline';
 import './contact';
+import './physics-chips';
+import './marquee';

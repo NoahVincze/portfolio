@@ -51,8 +51,12 @@ const skills = ['Interaction design', 'TypeScript', 'Astro', 'GSAP', 'Three.js',
   </section>
 
   <section class="section container" aria-labelledby="skills">
-    <h2 id="skills" class="eyebrow">Skills and tools</h2>
-    <ul class="skills" role="list">
+    <div class="skills-head">
+      <h2 id="skills" class="eyebrow">Skills and tools</h2>
+      <p class="skills__hint" data-physics-hint aria-hidden="true" hidden>Pick them up and throw them</p>
+    </div>
+    {/* With motion on, the chips drop into a box and can be thrown around (src/motion/effects/physics-chips.ts). */}
+    <ul class="skills" role="list" data-physics>
       {skills.map((skill) => <li class="skills__chip">{skill}</li>)}
     </ul>
   </section>
@@ -137,6 +141,45 @@ const skills = ['Interaction design', 'TypeScript', 'Astro', 'GSAP', 'Three.js',
     margin-top: var(--space-5);
     list-style: none;
     padding: 0;
+  }
+
+  .skills-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-4);
+  }
+
+  .skills__hint {
+    font-size: var(--text-sm);
+    color: var(--color-muted);
+  }
+
+  /* Physics mode: the list becomes a box and each chip is placed by the simulation. */
+  .skills.is-physics {
+    position: relative;
+    height: clamp(16rem, 34vw, 24rem);
+    overflow: hidden;
+    border: 1px solid var(--color-line);
+    border-radius: calc(var(--radius) * 2);
+  }
+
+  .skills.is-physics .skills__chip {
+    position: absolute;
+    top: 0;
+    left: 0;
+    background: var(--color-bg);
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    white-space: nowrap;
+    will-change: transform;
+  }
+
+  .skills.is-physics .skills__chip.is-dragging {
+    cursor: grabbing;
+    border-color: var(--color-ink);
   }
 
   .skills__chip {
