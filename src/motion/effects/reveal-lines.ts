@@ -1,6 +1,7 @@
 /**
- * Headings reveal line by line from behind a mask as they enter the viewport.
- * Reduced motion: a short fade instead.
+ * Text reveals as it enters the viewport: streamed token by token like a language model
+ * writing it (./stream.ts). The hero name instead rises line by line from behind a mask,
+ * because the particle hero measures its lines. Reduced motion: a short fade instead.
  *
  * Markup: add `data-reveal="lines"` to any text element. Optional `data-reveal-delay`
  * in milliseconds. Headings inside `.prose` (project write-ups) are included automatically.
@@ -10,6 +11,7 @@ import { SplitText } from 'gsap/SplitText';
 import { gsap } from '../gsap';
 import { definePageEffect } from '../page';
 import { gsapEase, seconds, staggerFor } from '../tokens';
+import { streamTokens } from './stream';
 
 gsap.registerPlugin(SplitText);
 
@@ -17,7 +19,11 @@ export const LINE_REVEAL_SELECTOR = '[data-reveal="lines"], .prose h2';
 
 const delayOf = (el: HTMLElement) => Number(el.dataset.revealDelay ?? 0) / 1000;
 
+/** Text the particle hero reads line by line: keeps the masked line reveal. */
+const LINE_ONLY = '.hero__name';
+
 definePageEffect(({ reduced }) => {
+  const cleanups: (() => void)[] = [];
   for (const el of document.querySelectorAll<HTMLElement>(LINE_REVEAL_SELECTOR)) {
     // Already shown another way (the first-visit intro reveals the hero name itself).
     if (el.hasAttribute('data-revealed')) continue;
@@ -29,6 +35,11 @@ definePageEffect(({ reduced }) => {
         { autoAlpha: 0 },
         { autoAlpha: 1, duration: seconds('quick'), ease: 'none', delay: delayOf(el), scrollTrigger },
       );
+      continue;
+    }
+
+    if (!el.matches(LINE_ONLY)) {
+      cleanups.push(streamTokens(el, { delay: delayOf(el), scrollTrigger }));
       continue;
     }
 
@@ -55,4 +66,5 @@ definePageEffect(({ reduced }) => {
       },
     });
   }
+  return () => cleanups.forEach((cleanup) => cleanup());
 });

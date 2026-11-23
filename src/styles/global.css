@@ -246,6 +246,100 @@ html[data-intro] .hero__name {
   margin-bottom: -0.15em;
 }
 
+/* Token streaming (src/motion/effects/stream.ts): the caret at the head of the text... */
+.token-caret {
+  position: absolute;
+  top: 0;
+  left: 0;
+  background: var(--color-accent);
+  border-radius: 1px;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.token-caret.is-visible {
+  visibility: visible;
+}
+
+/* ...blinks while it waits for the first token and after the last one. */
+.token-caret.is-waiting {
+  animation: caret-blink 0.9s steps(1) infinite;
+}
+
+@keyframes caret-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* ...and the decoder's top three candidates for the current token. */
+.logits {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 5;
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: 0.375rem;
+  background: var(--color-ink);
+  color: var(--color-bg);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 400;
+  line-height: 1.35;
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: pre;
+  text-align: left;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--dur-quick) var(--ease-out);
+}
+
+.logits.is-visible {
+  opacity: 1;
+}
+
+.logits__row {
+  display: grid;
+  grid-template-columns: 9ch 4.5rem auto;
+  align-items: center;
+  gap: 0.6ch;
+  opacity: 0.55;
+}
+
+.logits__row.is-chosen {
+  opacity: 1;
+}
+
+.logits__token {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.logits__track {
+  height: 0.3rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-bg) 18%, transparent);
+  overflow: hidden;
+}
+
+.logits__bar {
+  display: block;
+  height: 100%;
+  background: var(--color-bg);
+  transform-origin: 0 50%;
+}
+
+.is-chosen .logits__bar {
+  background: var(--color-accent);
+}
+
+.logits__p {
+  font-variant-numeric: tabular-nums;
+}
+
 /* Image frames clip the media that drifts inside them. */
 [data-reveal='image'],
 [data-parallax] {

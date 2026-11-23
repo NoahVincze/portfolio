@@ -8,6 +8,8 @@
  * decays a little slower and settles slightly above it, as it should.
  */
 
+import { random } from './random';
+
 export const EPOCHS = 12;
 const STEPS_PER_EPOCH = 8;
 const POINTS = EPOCHS * STEPS_PER_EPOCH + 1;
@@ -18,17 +20,6 @@ export const CHART = { width: 600, height: 168, max: 2.4 } as const;
 export interface TrainingRun {
   train: number[];
   val: number[];
-}
-
-function random(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
 }
 
 export function trainingRun(): TrainingRun {

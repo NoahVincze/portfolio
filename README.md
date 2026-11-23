@@ -2,7 +2,7 @@
 
 Personal portfolio site, built with [Astro](https://astro.build), [GSAP](https://gsap.com), [Lenis](https://lenis.darkroom.engineering) and (from Phase 3) [Three.js](https://threejs.org).
 
-The animation plan lives in the Personal Website Animation Spec. Built so far: **Phase 1** (page structure, motion tokens, shared frame loop, motion switch), **Phase 2** (line and image reveals, page transitions with the thumbnail-to-cover morph, reading progress bar), **Phase 3** (the particle hero), **Phase 4** (custom cursor, magnetic links, first-visit intro, sideways work section, cover hover shader, work filter, self-drawing timeline, contact scramble and copy), **Phase 5** (physics skill chips, scroll-speed footer marquee) and, in progress, **Phase 6** (an AI-themed visual identity: so far the diffusion cover shader, where covers are generated from Gaussian noise step by step, the cursor is a noise brush, and the home hero's particles land on the first cover as noise that denoises with the scroll; and the first-visit training intro, where a loss curve trains over 12 epochs before the name crystallises).
+The animation plan lives in the Personal Website Animation Spec. Built so far: **Phase 1** (page structure, motion tokens, shared frame loop, motion switch), **Phase 2** (line and image reveals, page transitions with the thumbnail-to-cover morph, reading progress bar), **Phase 3** (the particle hero), **Phase 4** (custom cursor, magnetic links, first-visit intro, sideways work section, cover hover shader, work filter, self-drawing timeline, contact scramble and copy), **Phase 5** (physics skill chips, scroll-speed footer marquee) and **Phase 6** (an AI-themed visual identity: the diffusion cover shader, where covers are generated from Gaussian noise step by step, the cursor is a noise brush, and the home hero's particles land on the first cover as noise that denoises with the scroll; the first-visit training intro, where a loss curve trains over 12 epochs before the name crystallises; and token-streaming text reveals, where text is written token by token with the decoder's top candidates flickering beside the caret).
 
 ## Getting started
 
@@ -48,8 +48,9 @@ npx playwright screenshot --viewport-size=1200,630 scripts/og-image.html public/
 | `src/motion/loop.ts` | The shared frame loop and Lenis smooth scroll |
 | `src/motion/preference.ts` | The motion switch (system setting + footer toggle) |
 | `src/motion/page.ts` | Per-page lifecycle: builds effects on each page, cleans them up before the next |
-| `src/motion/effects/` | Per-page effects: reveals, progress bar, magnetic links, sideways section, filter, timeline, contact, physics chips, footer marquee |
+| `src/motion/effects/` | Per-page effects: reveals (token streaming in `stream.ts`), progress bar, magnetic links, sideways section, filter, timeline, contact, physics chips, footer marquee |
 | `src/motion/intro.ts` | First-visit intro (the animation itself is CSS, `.site-intro` in `global.css`; this ticks its numbers and handles skipping) |
+| `src/motion/tokenizer.ts` | A tiny deterministic BPE-style tokenizer for the streaming reveal (`▁inter` + `active`) |
 | `src/motion/training.ts` | The intro's training run: the seeded loss curves, drawn at build time and read back in the browser |
 | `src/motion/cursor.ts` | Custom cursor |
 | `src/motion/hero/` | The particle hero: startup (`index.ts`), Three.js scene (`scene.ts`), layouts measured from the page (`layouts.ts`), shaders (`shaders.ts`), diffusion cover shader for reveals, hover and the hero landing (`covers.ts`) |
@@ -69,7 +70,7 @@ Mark elements with data attributes; the effects in `src/motion/effects/` pick th
 
 | Attribute | Effect (full motion) | Reduced motion |
 | --- | --- | --- |
-| `data-reveal="lines"` | Text reveals line by line from behind a mask as it scrolls into view. Optional `data-reveal-delay="200"` (ms). Headings in `.prose` get this automatically. | 200 ms fade |
+| `data-reveal="lines"` | Text streams in token by token, like a language model writing it, as it scrolls into view: a caret leads and a small panel shows the top three candidate tokens with their probabilities. The hero name instead rises line by line from behind a mask. Optional `data-reveal-delay="200"` (ms). Headings in `.prose` get this automatically. | 200 ms fade |
 | `data-reveal="image"` on a frame, `data-reveal-media` on the image inside | The frame wipes in from the bottom, then the image drifts from 1.15 to 1 while scrolling past | 200 ms fade |
 | `data-parallax` on a frame | Drift only, no wipe | Nothing |
 | `transition:name` (Astro) | Elements with the same name on two pages morph into each other during navigation | 200 ms crossfade |
