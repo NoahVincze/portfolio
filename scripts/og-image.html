@@ -1,0 +1,55 @@
+<!doctype html>
+<!--
+  Template for public/og.png, the image shown when the site is shared (1200 x 630).
+  Edit the name and tagline here, then regenerate (from the repository root):
+    npx playwright screenshot --viewport-size=1200,630 scripts/og-image.html public/og.png
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      html, body { margin: 0; width: 1200px; height: 630px; }
+      body {
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        gap: 28px;
+        padding: 72px 80px;
+        background: #f3f1ec;
+        color: #151514;
+        font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        position: relative;
+        overflow: hidden;
+      }
+      .dots {
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(#151514 1.4px, transparent 1.6px);
+        background-size: 18px 18px;
+        opacity: 0.08;
+        mask-image: linear-gradient(to top left, black, transparent 60%);
+      }
+      .label {
+        position: absolute;
+        top: 72px;
+        left: 80px;
+        font-family: ui-monospace, Menlo, Consolas, monospace;
+        font-size: 22px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #5f5c56;
+      }
+      h1 { margin: 0; font-size: 148px; font-weight: 600; line-height: 0.9; letter-spacing: -0.045em; }
+      p { margin: 0; max-width: 920px; font-size: 36px; line-height: 1.35; color: #5f5c56; }
+      .bar { position: absolute; left: 0; right: 0; top: 0; height: 8px; background: #e0471b; }
+    </style>
+  </head>
+  <body>
+    <div class="dots"></div>
+    <div class="bar"></div>
+    <div class="label">Portfolio</div>
+    <h1>Noah Vincze</h1>
+    <p>I design and build interactive things for the web.</p>
+  </body>
+</html>
