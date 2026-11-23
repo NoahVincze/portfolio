@@ -1,0 +1,36 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import MlpPlayground from '../components/MlpPlayground.astro';
+---
+
+<BaseLayout title="Lab" description="Small machine learning experiments that run in your browser.">
+  <section class="section container lab-head">
+    <h1 class="lab-head__title" data-reveal="lines">Lab</h1>
+    <p class="lab-head__intro">
+      Small machine learning experiments that run entirely in your browser: no server, no libraries, just the maths.
+    </p>
+  </section>
+
+  <section class="section container">
+    <MlpPlayground />
+  </section>
+</BaseLayout>
+
+<style>
+  .lab-head {
+    display: grid;
+    gap: var(--space-4);
+  }
+
+  .lab-head__title {
+    font-size: var(--text-display);
+    line-height: 0.9;
+    letter-spacing: -0.045em;
+  }
+
+  .lab-head__intro {
+    max-width: 40rem;
+    font-size: var(--text-lg);
+    color: var(--color-muted);
+  }
+</style>
