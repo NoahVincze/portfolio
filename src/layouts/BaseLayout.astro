@@ -5,6 +5,7 @@ import '../styles/global.css';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import { tokensToCss } from '../motion/tokens';
+import { CHART, chartPath, formatEpoch, formatLoss, trainingRun } from '../motion/training';
 import { site } from '../site';
 
 interface Props {
@@ -23,6 +24,11 @@ const shareImage = new URL(image, Astro.site);
 const motionTokens = `<style>${tokensToCss()}</style>`;
 /** The intro's letters are split here so the CSS animation can start with the first paint. */
 const introChars = [...site.name].map((char) => (char === ' ' ? '\u00a0' : char));
+/** Each letter crystallises at its own moment (deterministic, so every build matches). */
+const charDelays = introChars.map((_, i) => ((i * 7919) % 13) / 12);
+/** The intro's training run: curves drawn at build time, numbers ticked by src/motion/intro.ts. */
+const run = trainingRun();
+const runName = site.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 ---
 
 <!doctype html>
@@ -76,12 +82,33 @@ const introChars = [...site.name].map((char) => (char === ' ' ? '\u00a0' : char)
   </head>
   <body>
     <a class="skip-link" href="#main">Skip to content</a>
-    {/* First-visit intro panel (hidden unless <html data-intro="play">). */}
+    {/* First-visit intro panel (hidden unless <html data-intro="play">): a model trains, then the name crystallises. */}
     <div class="site-intro" aria-hidden="true">
       <div class="container site-intro__inner">
+        <div class="site-intro__training">
+          <p class="site-intro__run">
+            <span>run</span>
+            <span class="site-intro__run-name">{runName}</span>
+            <span class="site-intro__status">
+              <span class="site-intro__status-training">training</span>
+              <span class="site-intro__status-done">converged</span>
+            </span>
+          </p>
+          <svg class="site-intro__chart" viewBox={`0 0 ${CHART.width} ${CHART.height}`} role="presentation">
+            <line class="site-intro__axis" x1="0" y1={CHART.height - 0.5} x2={CHART.width} y2={CHART.height - 0.5} />
+            <path class="site-intro__curve site-intro__curve--val" d={chartPath(run.val)} pathLength="1" />
+            <path class="site-intro__curve site-intro__curve--train" d={chartPath(run.train)} pathLength="1" />
+          </svg>
+          <dl class="site-intro__metrics">
+            <div><dt>epoch</dt><dd data-intro-epoch>{formatEpoch(1)}</dd></div>
+            <div><dt>loss</dt><dd data-intro-loss>{formatLoss(run.train[0]!)}</dd></div>
+            <div><dt>val_loss</dt><dd data-intro-val>{formatLoss(run.val[0]!)}</dd></div>
+          </dl>
+          <span class="site-intro__progress"></span>
+        </div>
         <p class="site-intro__name">
           <span class="site-intro__line">
-            {introChars.map((char, i) => <span class="site-intro__char" style={`--i: ${i}`}>{char}</span>)}
+            {introChars.map((char, i) => <span class="site-intro__char" style={`--d: ${charDelays[i]!.toFixed(3)}`}>{char}</span>)}
           </span>
         </p>
         {/* Invisible copy of the hero tagline, so the name sits exactly where the hero's does. */}
