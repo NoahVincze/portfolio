@@ -149,4 +149,4 @@ Without WebGL or with motion reduced it is a top-down plot: the surface as a dot
 
 ## Placeholder content
 
-Copy marked `PLACEHOLDER` (in `src/site.ts`, `src/profile.ts`, the project files, and the About, Contact and Home pages) is sample text to replace, and the covers in `public/covers/` are placeholder images. The contact address is `hello@example.com` until you set your own in `src/site.ts`.
+The projects in `src/content/projects/` and their covers in `public/covers/` are real. Copy marked `PLACEHOLDER` (in `src/site.ts`, `src/profile.ts`, and the About, Contact and Home pages) is still sample text to replace. The contact address is `hello@example.com` until you set your own in `src/site.ts`.

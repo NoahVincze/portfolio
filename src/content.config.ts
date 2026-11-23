@@ -22,6 +22,8 @@ const projects = defineCollection({
     cover: z.string().optional(),
     /** Optional link to the live project. */
     link: z.url().optional(),
+    /** Optional link to the source code (e.g. the GitHub repository). */
+    repo: z.url().optional(),
   }),
 });
 

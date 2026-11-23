@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1200" viewBox="0 0 1600 1200">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#b8d0b2"/>
+      <stop offset="1" stop-color="#5f8a5a"/>
+    </linearGradient>
+    <radialGradient id="glow" gradientUnits="userSpaceOnUse" cx="1180" cy="380" r="760">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1600" height="1200" fill="url(#g)"/>
+  <rect width="1600" height="1200" fill="url(#glow)"/>
+  <rect x="760" y="250" width="740" height="520" rx="18" fill="#ffffff" fill-opacity="0.72"/>
+  <text x="810" y="330" fill="#2e7d32" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="38">✓</text>
+  <text x="870" y="330" fill="#151514" fill-opacity="0.75" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="30">test_discount_cap</text>
+  <text x="810" y="408" fill="#2e7d32" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="38">✓</text>
+  <text x="870" y="408" fill="#151514" fill-opacity="0.75" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="30">test_save20</text>
+  <text x="810" y="486" fill="#2e7d32" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="38">✓</text>
+  <text x="870" y="486" fill="#151514" fill-opacity="0.75" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="30">test_vat_after_discount</text>
+  <text x="810" y="564" fill="#c0392b" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="38">✕</text>
+  <text x="870" y="564" fill="#151514" fill-opacity="1" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="30">test_checkout_integration</text>
+  <text x="810" y="642" fill="#2e7d32" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="38">✓</text>
+  <text x="870" y="642" fill="#151514" fill-opacity="0.75" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="30">test_rounding</text>
+  <rect x="810" y="700" width="250" height="48" rx="24" fill="#151514"/>
+  <text x="935" y="733" text-anchor="middle" fill="#ffffff" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="26" letter-spacing="2">BLOCKED</text>
+  <text x="1080" y="733" fill="#151514" fill-opacity="0.65" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="24">218.00 → 214.20 ?</text>
+  <text x="96" y="160" fill="#151514" fill-opacity="0.6" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="32" letter-spacing="5">GREEN MEANS IT WORKS</text>
+  <text x="88" y="1060" fill="#151514" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif" font-size="168" font-weight="600" letter-spacing="-6.0">truegreen</text>
+</svg>
