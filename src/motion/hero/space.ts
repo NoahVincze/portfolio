@@ -294,7 +294,12 @@ export function createSpaceView(): SpaceView {
       return { label, x: x - box.left, y: y - box.top, depth };
     });
     // Most important (then nearest) first: they keep their place. A question's matches come first of all.
-    const rank = (label: LabelState) => (label.el.classList.contains('is-hit') ? 10 : label.priority);
+    // On the landscape, the checkpoint the ball reached last wins over the ones before it.
+    const rank = (label: LabelState) => {
+      if (label.el.classList.contains('is-hit')) return 10;
+      if (label.progress !== undefined && view.progress >= label.progress - 0.005) return label.priority + 1 + label.progress;
+      return label.priority;
+    };
     placed.sort((a, b) => rank(b.label) - rank(a.label) || b.depth - a.depth);
     const taken: [number, number, number, number][] = [];
     for (const { label, x, y, depth } of placed) {

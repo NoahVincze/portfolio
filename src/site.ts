@@ -11,6 +11,7 @@ export const site = {
   email: 'hello@example.com',
   socials: [
     { label: 'GitHub', href: 'https://github.com/NoahVincze' },
+    { label: 'LinkedIn', href: 'https://www.linkedin.com/in/noah-vincze/' },
   ],
   nav: [
     { label: 'Work', href: '/work/' },
