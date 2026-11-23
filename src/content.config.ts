@@ -16,8 +16,10 @@ const projects = defineCollection({
     featured: z.boolean().default(false),
     /** Lower numbers come first. */
     order: z.number().default(100),
-    /** Cover colour shown until real cover images are added. */
+    /** Cover colour, shown while the cover image loads (and used by the particle hero). */
     accent: z.string().default('#d8d2c4'),
+    /** Cover image path in public/ (e.g. /covers/my-project.jpg). 4:3 or wider works best. */
+    cover: z.string().optional(),
     /** Optional link to the live project. */
     link: z.url().optional(),
   }),

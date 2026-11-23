@@ -10,8 +10,14 @@ import { site } from '../site';
       PLACEHOLDER. Say what you are open to: freelance work, full-time roles, collaborations or just
       a hello.
     </p>
-    {/* Phase 4: the address scrambles on hover and copies on click. */}
-    <a class="contact__email" href={`mailto:${site.email}`}>{site.email}</a>
+    {/* The address scrambles on hover and focus; the button copies it (src/motion/effects/contact.ts). */}
+    <div class="contact__address">
+      <a class="contact__email" href={`mailto:${site.email}`} aria-label={site.email} data-scramble>{site.email}</a>
+      <button type="button" class="contact__copy" data-copy={site.email} data-copy-status="#copy-status" data-magnetic="0.2">
+        <span class="copy__label">Copy address</span>
+      </button>
+    </div>
+    <p id="copy-status" class="visually-hidden" role="status"></p>
     <ul class="contact__links" role="list">
       {
         site.socials.map((social) => (
@@ -46,8 +52,40 @@ import { site } from '../site';
     color: var(--color-muted);
   }
 
-  .contact__email {
+  .contact__address {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3) var(--space-4);
     margin-top: var(--space-4);
+  }
+
+  /* Shown from the first paint when JavaScript is on (no layout shift); the effect hides it
+     again if the Clipboard API is missing. */
+  .contact__copy {
+    display: none;
+  }
+
+  :global(html[data-motion]) .contact__copy {
+    display: inline-flex;
+    overflow: hidden;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--color-ink);
+    border-radius: 999px;
+    background: none;
+    cursor: pointer;
+    font-size: var(--text-sm);
+  }
+
+  :global(html[data-motion]) .contact__copy[hidden] {
+    display: none;
+  }
+
+  .copy__label {
+    display: inline-block;
+  }
+
+  .contact__email {
     font-size: var(--text-xl);
     font-weight: 600;
     letter-spacing: -0.02em;

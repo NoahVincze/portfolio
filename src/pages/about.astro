@@ -30,19 +30,24 @@ const skills = ['Interaction design', 'TypeScript', 'Astro', 'GSAP', 'Three.js',
   <section class="section container" aria-labelledby="experience">
     <h2 id="experience" class="eyebrow">Experience</h2>
     {/* Phase 4: this timeline draws itself as the visitor scrolls. */}
-    <ol class="timeline" role="list">
+    {/* Draws itself on scroll (src/motion/effects/timeline.ts). */}
+    <div class="timeline" data-timeline>
+      <span class="timeline__line" aria-hidden="true"></span>
+      <ol class="timeline__list" role="list">
       {
         timeline.map((entry) => (
           <li class="timeline__item">
+            <span class="timeline__dot" aria-hidden="true" />
             <p class="timeline__years">{entry.years}</p>
-            <div>
+            <div class="timeline__content">
               <h3 class="timeline__title">{entry.title}</h3>
               <p class="timeline__text">{entry.text}</p>
             </div>
           </li>
         ))
       }
-    </ol>
+      </ol>
+    </div>
   </section>
 
   <section class="section container" aria-labelledby="skills">
@@ -66,13 +71,38 @@ const skills = ['Interaction design', 'TypeScript', 'Astro', 'GSAP', 'Three.js',
   }
 
   .timeline {
+    position: relative;
     margin-top: var(--space-5);
+  }
+
+  .timeline__list {
     list-style: none;
     padding: 0;
-    border-left: 1px solid var(--color-line);
+  }
+
+  .timeline__line {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 1px;
+    background: var(--color-ink);
+    transform-origin: top;
+  }
+
+  .timeline__dot {
+    position: absolute;
+    top: 0.45em;
+    left: -4px;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--color-bg);
+    border: 1px solid var(--color-ink);
   }
 
   .timeline__item {
+    position: relative;
     display: grid;
     grid-template-columns: minmax(8rem, 12rem) 1fr;
     gap: var(--space-2) var(--space-5);

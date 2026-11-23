@@ -17,7 +17,7 @@ interface Props {
 }
 
 const { project, next } = Astro.props;
-const { title, summary, year, role, tags, accent, link } = project.data;
+const { title, summary, year, role, tags, accent, cover, link } = project.data;
 const { Content } = await render(project);
 ---
 
@@ -69,7 +69,9 @@ const { Content } = await render(project);
         transition:name={`cover-${project.id}`}
         aria-hidden="true"
       >
-        <div data-reveal-media style={`--cover: ${accent}`}></div>
+        <div data-reveal-media style={`--cover: ${accent}`}>
+          {cover && <img src={cover} alt="" width="1600" height="1200" loading="eager" fetchpriority="high" decoding="async" />}
+        </div>
       </div>
     </div>
 

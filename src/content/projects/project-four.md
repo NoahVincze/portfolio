@@ -6,6 +6,7 @@ role: Design and development
 tags: [Web]
 order: 4
 accent: '#c4b0a8'
+cover: /covers/project-four.svg
 ---
 
 PLACEHOLDER. Start with the problem: who it was for and what was hard about it.

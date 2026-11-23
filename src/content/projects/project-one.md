@@ -7,6 +7,7 @@ tags: [Web, WebGL]
 featured: true
 order: 1
 accent: '#c9b8a4'
+cover: /covers/project-one.svg
 ---
 
 PLACEHOLDER. Start with the problem: who it was for and what was hard about it.

@@ -7,6 +7,7 @@ tags: [Product, Prototype]
 featured: true
 order: 3
 accent: '#b3aac4'
+cover: /covers/project-three.svg
 ---
 
 PLACEHOLDER. Start with the problem: who it was for and what was hard about it.
