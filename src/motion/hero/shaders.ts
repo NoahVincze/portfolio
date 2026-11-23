@@ -5,9 +5,12 @@
  *   prev    where it was when the current regroup started (viewport pixels), with its
  *           own size and opacity at that moment (aPrevStyle)
  *   A, B    the page's two layouts, morphed by uMorph (home: name + field -> first cover)
- *   E       home only: the embedding space, a 3D point cloud (aE, unit sphere) that is
- *           rotated by uERot and projected into the stage around uECenter. uSpace morphs
- *           A into E; uMorph then takes E on to B. Elsewhere uSpace stays 0.
+ *   E       a 3D scene (aE, unit sphere) rotated by uERot and projected into a stage
+ *           around uECenter: the embedding space on home, the loss landscape on About.
+ *           uSpace morphs A into E; on home uMorph then takes E on to B.
+ *           aEInfo.y says what a particle is in E (see the GROUP constants), aEInfo.x when
+ *           it takes the accent colour: from the start (0 < x), or once uTintUpTo has
+ *           passed x (the landscape's trail, revealed as the ball travels).
  * uRegroup runs 0 -> 1 after a navigation or at start-up, moving particles from prev to A/B.
  *
  * Layout A can hold an ambient field (home hero): particles ranked at or above uFieldFrom
@@ -23,6 +26,10 @@ export const FIELD_SIZE = 0.75;
 export const SPACE_CAMERA = 3.2;
 export const SPACE_BACK_ALPHA = 0.22;
 export const SPACE_HALO_ALPHA = 0.32;
+export const SURFACE_ALPHA = 0.5;
+
+/** aEInfo.y: what a particle is in the 3D scene. Zero and up: the space point it belongs to. */
+export const GROUP = { halo: -1, ball: -2, trail: -3, surface: -4 } as const;
 
 export const vertexShader = /* glsl */ `
   uniform vec2 uViewport;
@@ -60,6 +67,8 @@ export const vertexShader = /* glsl */ `
   uniform float uAlphaE;
   uniform float uSizeE;
   uniform float uHighlight;
+  uniform vec3 uBall;
+  uniform float uTintUpTo;
 
   attribute vec2 aA;
   attribute vec2 aB;
@@ -79,6 +88,11 @@ export const vertexShader = /* glsl */ `
   const float SPACE_CAMERA = ${SPACE_CAMERA.toFixed(3)};
   const float SPACE_BACK_ALPHA = ${SPACE_BACK_ALPHA.toFixed(3)};
   const float SPACE_HALO_ALPHA = ${SPACE_HALO_ALPHA.toFixed(3)};
+  const float SURFACE_ALPHA = ${SURFACE_ALPHA.toFixed(3)};
+
+  float isGroup(float group) {
+    return 1.0 - step(0.5, abs(aEInfo.y - group));
+  }
 
   float visible(float density) {
     return 1.0 - smoothstep(density - 0.02, density, aSeed.x);
@@ -101,12 +115,16 @@ export const vertexShader = /* glsl */ `
 
     // The embedding space: rotate, then a perspective projection into the stage.
     float e = uSpace;
-    vec3 spun = uERot * aE;
+    float isBall = isGroup(${GROUP.ball.toFixed(1)});
+    float isTrail = isGroup(${GROUP.trail.toFixed(1)});
+    float isSurface = isGroup(${GROUP.surface.toFixed(1)});
+    vec3 spun = uERot * (aE + isBall * uBall);
     float persp = SPACE_CAMERA / (SPACE_CAMERA - spun.z);
     vec2 posE = uECenter + vec2(spun.x, -spun.y) * uEScale * persp;
     float depth = clamp(spun.z * 0.5 + 0.5, 0.0, 1.0); // 0 at the back, 1 at the front
-    float isHalo = step(aEInfo.y, -0.5);
-    float lit = (1.0 - isHalo) * (1.0 - step(0.5, abs(aEInfo.y - uHighlight)));
+    float isHalo = isGroup(${GROUP.halo.toFixed(1)});
+    float lit = step(-0.5, aEInfo.y) * (1.0 - step(0.5, abs(aEInfo.y - uHighlight)));
+    float reached = step(0.0001, aEInfo.x) * step(aEInfo.x, uTintUpTo);
 
     // Morph between the page's layouts (by way of the space), bursting outward halfway.
     vec2 posA = baseA - vec2(0.0, uScroll * uFactorA);
@@ -133,9 +151,10 @@ export const vertexShader = /* glsl */ `
 
     float alphaA = uAlphaA * mix(1.0, FIELD_ALPHA * edge * twinkle, isField);
     float sizeA = uSizeA * mix(1.0, FIELD_SIZE, isField);
-    float alphaE = uAlphaE * mix(SPACE_BACK_ALPHA, 1.0, depth) * mix(1.0, SPACE_HALO_ALPHA, isHalo) * (1.0 + lit);
-    float sizeE = uSizeE * persp * mix(1.0, FIELD_SIZE, isHalo) * (1.0 + 0.8 * lit);
-    vec3 colorE = mix(uColorE, uAccent, max(aEInfo.x, lit));
+    float alphaE = uAlphaE * mix(SPACE_BACK_ALPHA, 1.0, depth) * mix(1.0, SPACE_HALO_ALPHA, isHalo)
+      * mix(1.0, SURFACE_ALPHA, isSurface) * mix(1.0, reached, isTrail) * (1.0 + lit);
+    float sizeE = uSizeE * persp * mix(1.0, FIELD_SIZE, isHalo) * (1.0 + 0.8 * lit + 0.5 * isBall);
+    vec3 colorE = mix(uColorE, uAccent, max(reached, lit));
 
     float alphaNow = mix(mix(alphaA, alphaE, e), uAlphaB, m) * (1.0 - uFadeOnArrival * smoothstep(0.8, 1.0, m));
     float sizeNow = mix(mix(sizeA, sizeE, e), uSizeB, m);

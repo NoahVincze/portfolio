@@ -10,7 +10,10 @@
  *   Other pages: A = B = a faint field of dust behind the content.
  */
 
+import { checkpoints, descend, DOMAIN, loss, lossRange, stepAt } from '../landscape';
 import { hashString, random } from '../random';
+import { GROUP } from './shaders';
+import { VIEW, type ViewPreset } from './space';
 
 export type RGB = [number, number, number];
 
@@ -42,6 +45,9 @@ export const HERO_FIELD_SHARE = 0.4;
  * unit sphere); the vertex shader rotates and projects them into the stage every frame.
  */
 export interface SpaceLayout {
+  /** The embedding space (home) or the loss landscape (About). */
+  kind: 'space' | 'landscape';
+  view: ViewPreset;
   section: HTMLElement;
   stage: HTMLElement;
   /** The area the cloud fills (the labels' container). */
@@ -51,7 +57,13 @@ export interface SpaceLayout {
   /** Per particle: accent tint (0 or 1) and the index of the point it belongs to. */
   info: Float32Array;
   points: SpacePointData[];
-  labels: { el: HTMLElement; index: number; priority: number }[];
+  labels: { el: HTMLElement; index: number; priority: number; progress?: number }[];
+  /** Landscape: the descent's positions in space units, one per step, for the ball. */
+  path?: [number, number, number][];
+  /** Landscape: the live readout of step and loss. */
+  readout?: HTMLElement | null;
+  /** Landscape: the progress through the run at which the ball has arrived (last checkpoint). */
+  arrival?: number;
 }
 
 export interface SpacePointData {
@@ -293,14 +305,86 @@ function spaceLayout(count: number, fieldFrom: number, rand: () => number): Spac
     positions[i * 3 + 1] = y + gaussian(rand) * spread;
     positions[i * 3 + 2] = z + gaussian(rand) * spread;
     info[i * 2] = point.k === 'project' && i < fieldStart ? 1 : 0;
-    info[i * 2 + 1] = i < fieldStart ? index : -1;
+    info[i * 2 + 1] = i < fieldStart ? index : GROUP.halo;
   }
 
   const labels = [...area.querySelectorAll<HTMLElement>('[data-space-point]')].map((el) => {
     const index = Number(el.dataset.spacePoint);
     return { el, index, priority: LABEL_PRIORITY[points[index]?.k ?? 'passage'] };
   });
-  return { section, stage, area, positions, info, points, labels };
+  return { kind: 'space', view: VIEW.space, section, stage, area, positions, info, points, labels };
+}
+
+/** Lifts the ball and trail a little off the surface, so they sit on it rather than in it. */
+const LIFT = 0.025;
+
+/**
+ * The loss landscape (About, src/components/LossLandscape.astro): the loss surface as a
+ * grid of particles, the descent's trail (revealed as the ball travels), the ball itself
+ * (offsets around `uBall`, which the scene moves) and a little dust around it all.
+ * x and z span the domain, y is the loss (up).
+ */
+function landscapeLayout(count: number, rand: () => number): SpaceLayout | null {
+  const section = document.querySelector<HTMLElement>('[data-landscape]');
+  const stage = section?.querySelector<HTMLElement>('[data-space-stage]');
+  const area = section?.querySelector<HTMLElement>('[data-space-labels]');
+  if (!section || !stage || !area) return null;
+
+  const steps = descend();
+  const [low, high] = lossRange();
+  const surface = (x: number, y: number, lift = 0): [number, number, number] => [
+    x / DOMAIN,
+    ((loss(x, y) - low) / (high - low)) * 0.85 - 0.45 + lift,
+    -y / DOMAIN,
+  ];
+  const path = steps.map((step) => surface(step.x, step.y, LIFT));
+
+  const positions = new Float32Array(count * 3);
+  const info = new Float32Array(count * 2);
+  const side = Math.floor(Math.sqrt(count * 0.8));
+  const trail = Math.round(count * 0.13);
+  const ball = Math.round(count * 0.035);
+  let i = 0;
+  const put = (p: [number, number, number], tint: number, group: number) => {
+    positions.set(p, i * 3);
+    info[i * 2] = tint;
+    info[i * 2 + 1] = group;
+    i++;
+  };
+  for (let row = 0; row < side; row++) {
+    for (let col = 0; col < side; col++) {
+      const x = -DOMAIN + (2 * DOMAIN * (col + 0.5 * (rand() - 0.5))) / (side - 1);
+      const y = -DOMAIN + (2 * DOMAIN * (row + 0.5 * (rand() - 0.5))) / (side - 1);
+      put(surface(x, y), 0, GROUP.surface);
+    }
+  }
+  for (let k = 0; k < trail; k++) {
+    const progress = Math.max(0.0002, k / (trail - 1));
+    const step = stepAt(steps, progress);
+    const [x, y, z] = surface(step.x, step.y, LIFT);
+    put([x + gaussian(rand) * 0.005, y + gaussian(rand) * 0.005, z + gaussian(rand) * 0.005], progress, GROUP.trail);
+  }
+  for (let k = 0; k < ball; k++) {
+    const r = 0.035 * Math.cbrt(rand());
+    const theta = 2 * Math.PI * rand();
+    const phi = Math.acos(2 * rand() - 1);
+    put([r * Math.sin(phi) * Math.cos(theta), r * Math.cos(phi), r * Math.sin(phi) * Math.sin(theta)], 0.0001, GROUP.ball);
+  }
+  while (i < count) {
+    put([(rand() * 2 - 1) * 1.1, rand() * 0.9 - 0.2, (rand() * 2 - 1) * 1.1], 0, GROUP.halo);
+  }
+
+  // The checkpoints (experience, oldest first) sit along the run, evenly by distance.
+  const els = [...area.querySelectorAll<HTMLElement>('[data-space-point]')];
+  const at = checkpoints(steps, els.length);
+  const points = at.map((progress) => {
+    const step = stepAt(steps, progress);
+    return { p: surface(step.x, step.y, LIFT * 3), k: 'experience' as const };
+  });
+  const labels = els.map((el, index) => ({ el, index, priority: 2, progress: at[index]! }));
+  const readout = section.querySelector<HTMLElement>('[data-landscape-readout]');
+  const arrival = at[at.length - 1] ?? 1;
+  return { kind: 'landscape', view: VIEW.landscape, section, stage, area, positions, info, points, labels, path, readout, arrival };
 }
 
 /** Share of the work map's particles that form the drifting field around the clusters. */
@@ -378,5 +462,5 @@ export function readPageLayouts(count: number): PageLayouts {
   if (map) return { a: map, b: { ...map, field: undefined }, space: null, fadeOnArrival: false, morphEnd: null };
 
   const dust = dustLayout(count, muted, rand);
-  return { a: dust, b: dust, space: null, fadeOnArrival: false, morphEnd: null };
+  return { a: dust, b: dust, space: landscapeLayout(count, rand), fadeOnArrival: false, morphEnd: null };
 }

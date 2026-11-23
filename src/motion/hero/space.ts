@@ -14,11 +14,20 @@ import { Matrix3, Vector2 } from 'three';
 import type { SpaceLayout } from './layouts';
 import { SPACE_CAMERA } from './shaders';
 
-/** The cloud's radius as a share of the stage area's smaller side. */
-const SCALE = 0.47;
-/** Turning speed: radians per second on its own, and per pixel scrolled. */
-const SPIN = { time: 0.09, scroll: 0.0011, pointer: 0.7 };
-const TILT = { base: 0.32, pointer: 0.45 };
+/** How a scene is viewed. */
+export interface ViewPreset {
+  /** The scene's radius as a share of the stage area's smaller side. */
+  scale: number;
+  /** Turning speed: radians per second on its own, per pixel scrolled, and toward the cursor. */
+  spin: { time: number; scroll: number; pointer: number };
+  /** Tilt toward the viewer (radians), and how far the cursor adds to it. */
+  tilt: { base: number; pointer: number };
+}
+
+export const VIEW = {
+  space: { scale: 0.47, spin: { time: 0.09, scroll: 0.0011, pointer: 0.7 }, tilt: { base: 0.32, pointer: 0.45 } },
+  landscape: { scale: 0.62, spin: { time: 0.04, scroll: 0.0005, pointer: 0.45 }, tilt: { base: 0.62, pointer: 0.25 } },
+} satisfies Record<string, ViewPreset>;
 /** Labels within this many pixels of a more important one are faded back. */
 const LABEL_GAP = 3;
 
@@ -33,6 +42,8 @@ interface LabelState {
   flipped: boolean;
   index: number;
   priority: number;
+  /** Landscape checkpoints: the progress at which the ball reaches this label. */
+  progress?: number;
   width: number;
   height: number;
 }
@@ -45,6 +56,8 @@ export interface SpaceView {
   scale: number;
   /** The point whose cluster is lit up (-1 for none), for the shader. */
   highlight: number;
+  /** Progress through the scene (landscape: the descent), which labels with a `progress` wait for. */
+  progress: number;
   setup(layout: SpaceLayout | null): void;
   /**
    * Scroll positions (px) where the morph into the space should be complete (the stage
@@ -73,17 +86,19 @@ export function createSpaceView(): SpaceView {
     center,
     scale: 1,
     highlight: -1,
+    progress: 1,
 
     setup(next) {
       view.teardown();
       layout = next;
       if (!layout) return;
       layout.stage.classList.add('is-projected');
-      labels = layout.labels.map(({ el, index, priority }) => ({
+      labels = layout.labels.map(({ el, index, priority, progress }) => ({
         el,
         flipped: el.classList.contains('is-flipped'),
         index,
         priority,
+        progress,
         width: el.offsetWidth,
         height: el.offsetHeight,
       }));
@@ -127,8 +142,9 @@ export function createSpaceView(): SpaceView {
     update(time, pointer, arrived, leaving) {
       if (!layout) return;
       // Turn: on its own, with the scroll, and toward the cursor.
-      const yaw = time * SPIN.time + scrollY * SPIN.scroll + pointer.x * SPIN.pointer;
-      const tilt = TILT.base + pointer.y * TILT.pointer;
+      const { spin, tilt: lean, scale } = layout.view;
+      const yaw = time * spin.time + scrollY * spin.scroll + pointer.x * spin.pointer;
+      const tilt = lean.base + pointer.y * lean.pointer;
       const [c, s, cb, sb] = [Math.cos(yaw), Math.sin(yaw), Math.cos(tilt), Math.sin(tilt)];
       // R = Rx(tilt) · Ry(yaw), row-major.
       r.set([c, 0, s, sb * s, cb, -sb * c, -cb * s, sb, cb * c]);
@@ -136,7 +152,8 @@ export function createSpaceView(): SpaceView {
 
       const box = layout.area.getBoundingClientRect();
       center.set(box.left + box.width / 2, box.top + box.height / 2);
-      view.scale = Math.min(box.width, box.height) * SCALE;
+      // Portrait stages (phones) are narrower than the scene is wide once it turns: shrink it.
+      view.scale = Math.min(box.width, box.height) * scale * (box.width < box.height ? 0.62 : 1);
 
       placeLabels(box, smoothstep(0.75, 1, arrived) * (1 - smoothstep(0, 0.2, leaving)));
     },
@@ -203,7 +220,10 @@ export function createSpaceView(): SpaceView {
       const rect: [number, number, number, number] = [left - LABEL_GAP, y - label.height / 2 - LABEL_GAP, left + label.width + LABEL_GAP, y + label.height / 2 + LABEL_GAP];
       const blocked = taken.some((t) => rect[0] < t[2] && rect[2] > t[0] && rect[1] < t[3] && rect[3] > t[1]);
       if (!blocked) taken.push(rect);
-      const opacity = visibility * (0.35 + 0.65 * depth) * (blocked && view.highlight !== label.index ? 0.15 : 1);
+      const waiting = label.progress !== undefined && view.progress < label.progress - 0.005;
+      label.el.classList.toggle('is-reached', label.progress !== undefined && !waiting);
+      const opacity =
+        visibility * (0.35 + 0.65 * depth) * (blocked && view.highlight !== label.index ? 0.15 : 1) * (waiting ? 0.4 : 1);
       const { style } = label.el;
       label.el.classList.toggle('is-flipped', flip);
       style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0) ${flip ? 'translate(calc(-100% + 0.15rem), -50%)' : 'translate(-0.15rem, -50%)'}`;
