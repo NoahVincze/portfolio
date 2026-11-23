@@ -30,6 +30,13 @@ const percent = (value: number) => `${(50 + value * 42).toFixed(2)}%`;
         with {space.source === 'model' ? 'all-MiniLM-L6-v2 into 384 dimensions' : 'a hashed bag of words'} and projected
         to 3D with PCA. Related things sit close together.
       </p>
+      {/* Ask (src/motion/effects/ask.ts). Shown when JavaScript runs (keyed off <html data-motion>). */}
+      <form class="ask" role="search" data-ask data-index="/embedding/search.json">
+        <label for="ask-input" class="visually-hidden">Ask about my work</label>
+        <input id="ask-input" class="ask__input" type="search" placeholder="Ask about my work, e.g. “data pipelines”" autocomplete="off" enterkeyhint="search" data-ask-input />
+        <button type="submit" class="ask__submit">Ask</button>
+        <p class="ask__status" data-ask-status>Your question is embedded in your browser and never leaves it.</p>
+      </form>
     </div>
     <ul class="space__points" role="list" data-space-labels>
       {
@@ -50,6 +57,10 @@ const percent = (value: number) => `${(50 + value * 42).toFixed(2)}%`;
         ))
       }
     </ul>
+    <div class="ask__results" data-ask-results aria-live="polite" hidden>
+      <p class="ask__results-title" data-ask-mode></p>
+      <ol class="ask__list" role="list" data-ask-list></ol>
+    </div>
     <p class="space__axes" aria-hidden="true">PC1 · PC2 · PC3</p>
   </div>
   <script type="application/json" data-space-points set:html={JSON.stringify(clientPoints)} />
@@ -156,8 +167,155 @@ const percent = (value: number) => `${(50 + value * 42).toFixed(2)}%`;
   }
 
   .space__point.is-active a,
-  .space__point.is-active span {
+  .space__point.is-active span,
+  .space__point:global(.is-hit) a,
+  .space__point:global(.is-hit) span {
     color: var(--color-accent);
+  }
+
+  .space__point:global(.is-hit) {
+    font-weight: 600;
+  }
+
+  /* Lines from an Ask question to its nearest neighbours (src/motion/hero/space.ts). */
+  .space__points :global(.space__links) {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    pointer-events: none;
+  }
+
+  .space__points :global(.space__links line) {
+    stroke: var(--color-accent);
+    stroke-width: 1;
+    stroke-dasharray: 3 4;
+  }
+
+  /* ---- Ask */
+
+  .ask {
+    display: none;
+  }
+
+  :global(html[data-motion]) .ask {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+  }
+
+  .ask__input {
+    min-width: 0;
+    padding: 0.55rem 0.9rem;
+    border: 1px solid var(--color-line);
+    border-radius: 999px;
+    background: var(--color-bg);
+    color: var(--color-ink);
+    font: inherit;
+    font-size: var(--text-sm);
+  }
+
+  .ask__input:focus-visible {
+    border-color: var(--color-ink);
+  }
+
+  .ask__submit {
+    padding: 0.55rem 1.1rem;
+    border: 1px solid var(--color-ink);
+    border-radius: 999px;
+    background: var(--color-ink);
+    color: var(--color-bg);
+    font-size: var(--text-sm);
+    cursor: pointer;
+  }
+
+  .ask__status {
+    grid-column: 1 / -1;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--color-muted);
+  }
+
+  .ask__results {
+    position: absolute;
+    left: var(--gutter);
+    bottom: var(--space-5);
+    z-index: 300;
+    width: min(26rem, calc(100% - 2 * var(--gutter)));
+    max-height: 55%;
+    overflow-y: auto;
+    padding: var(--space-3);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius);
+    background: color-mix(in srgb, var(--color-bg) 92%, transparent);
+    backdrop-filter: blur(6px);
+  }
+
+  .ask__results-title {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--color-muted);
+    margin-bottom: var(--space-2);
+  }
+
+  .ask__list {
+    display: grid;
+    gap: var(--space-3);
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .ask__list :global(li) {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 0.15rem 0.6rem;
+    align-items: baseline;
+    font-size: var(--text-sm);
+  }
+
+  .ask__list :global(.ask__rank) {
+    font-family: var(--font-mono);
+    color: var(--color-accent);
+  }
+
+  .ask__list :global(.ask__label) {
+    font-weight: 600;
+  }
+
+  .ask__list :global(.ask__score) {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--color-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .ask__list :global(.ask__snippet) {
+    grid-column: 2 / -1;
+    color: var(--color-muted);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* Phones: a compact list (titles and scores), so the lit clusters stay in view. */
+  @media (max-width: 599px) {
+    .ask__results {
+      bottom: var(--space-3);
+      max-height: 34%;
+      padding: var(--space-2) var(--space-3);
+    }
+
+    .ask__list {
+      gap: var(--space-1);
+    }
+
+    .ask__list :global(.ask__snippet) {
+      display: none;
+    }
   }
 
   .space__axes {

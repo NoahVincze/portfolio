@@ -1,0 +1,244 @@
+---
+/**
+ * Lab experiment: a small neural network (src/lab/mlp.ts) trains live on a toy dataset.
+ * The plot shows the decision boundary as the network learns it; visitors can switch
+ * datasets, add points (click; shift-click for the other class), pause and reset.
+ * Wired up by src/motion/effects/playground.ts. With motion reduced it starts paused.
+ */
+import { DATASETS } from '../lab/datasets';
+
+const LAYERS = [2, 10, 10, 1];
+const parameters = LAYERS.slice(1).reduce((sum, size, i) => sum + size * (LAYERS[i]! + 1), 0);
+---
+
+<section class="mlp" aria-labelledby="mlp-title" data-mlp data-layers={LAYERS.join(',')}>
+  <div class="mlp__head">
+    <p class="eyebrow">Experiment 01</p>
+    <h2 id="mlp-title" class="mlp__title">A neural network, learning in your browser</h2>
+    <p class="mlp__intro">
+      A {LAYERS.join('–')} multilayer perceptron ({parameters} parameters, tanh, Adam) trains on the points below, written
+      from scratch in TypeScript. The shading is its prediction; the line is where it is undecided. Add points and
+      watch it adapt.
+    </p>
+  </div>
+
+  <div class="mlp__body">
+    <div class="mlp__plot">
+      <canvas
+        class="mlp__canvas"
+        data-mlp-canvas
+        role="img"
+        aria-label="The network's decision boundary over the training points. Click to add points."></canvas>
+      <noscript><p class="mlp__noscript">This experiment runs in JavaScript.</p></noscript>
+    </div>
+
+    <div class="mlp__panel">
+      <dl class="mlp__stats">
+        <div><dt>epoch</dt><dd data-mlp-epoch>0</dd></div>
+        <div><dt>loss</dt><dd data-mlp-loss>–</dd></div>
+        <div><dt>accuracy</dt><dd data-mlp-accuracy>–</dd></div>
+        <div><dt>points</dt><dd data-mlp-count>–</dd></div>
+      </dl>
+
+      <svg class="mlp__curve" viewBox="0 0 200 48" preserveAspectRatio="none" aria-hidden="true">
+        <path data-mlp-curve d="" />
+      </svg>
+
+      <svg class="mlp__network" viewBox="0 0 200 120" aria-hidden="true" data-mlp-network></svg>
+
+      <div class="mlp__controls">
+        <div class="mlp__group" role="group" aria-label="Dataset">
+          {
+            DATASETS.map((dataset, i) => (
+              <button type="button" class="mlp__button" data-mlp-dataset={dataset.name} aria-pressed={i === 0 ? 'true' : 'false'}>
+                {dataset.label}
+              </button>
+            ))
+          }
+        </div>
+        <div class="mlp__group" role="group" aria-label="Class of the points you add">
+          <button type="button" class="mlp__button mlp__button--class" data-mlp-class="1" aria-pressed="true">
+            <span class="mlp__swatch mlp__swatch--a" aria-hidden="true"></span>Add orange
+          </button>
+          <button type="button" class="mlp__button mlp__button--class" data-mlp-class="0" aria-pressed="false">
+            <span class="mlp__swatch mlp__swatch--b" aria-hidden="true"></span>Add dark
+          </button>
+        </div>
+        <div class="mlp__group">
+          <button type="button" class="mlp__button" data-mlp-play aria-pressed="true">Pause</button>
+          <button type="button" class="mlp__button" data-mlp-reset>Reset weights</button>
+          <button type="button" class="mlp__button" data-mlp-clear>Clear points</button>
+        </div>
+      </div>
+      <p class="mlp__hint">Click the plot to add a point; shift-click adds the other class.</p>
+    </div>
+  </div>
+</section>
+
+<style>
+  .mlp {
+    display: grid;
+    gap: var(--space-5);
+  }
+
+  .mlp__head {
+    display: grid;
+    gap: var(--space-3);
+    max-width: 44rem;
+  }
+
+  .mlp__title {
+    font-size: var(--text-xl);
+  }
+
+  .mlp__intro {
+    color: var(--color-muted);
+  }
+
+  .mlp__body {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(16rem, 1fr);
+    gap: var(--space-6);
+    align-items: start;
+  }
+
+  @media (max-width: 899px) {
+    .mlp__body {
+      grid-template-columns: 1fr;
+      gap: var(--space-5);
+    }
+  }
+
+  .mlp__plot {
+    position: relative;
+    aspect-ratio: 1;
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: var(--color-surface);
+  }
+
+  .mlp__canvas {
+    width: 100%;
+    height: 100%;
+    cursor: crosshair;
+    touch-action: manipulation;
+  }
+
+  .mlp__noscript {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: var(--color-muted);
+  }
+
+  .mlp__panel {
+    display: grid;
+    gap: var(--space-4);
+  }
+
+  .mlp__stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--space-3);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+  }
+
+  .mlp__stats dt {
+    color: var(--color-muted);
+  }
+
+  .mlp__stats dd {
+    font-size: var(--text-lg);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .mlp__curve {
+    width: 100%;
+    height: 3rem;
+    border-bottom: 1px solid var(--color-line);
+    overflow: visible;
+  }
+
+  .mlp__curve path {
+    fill: none;
+    stroke: var(--color-accent);
+    stroke-width: 1.5;
+    vector-effect: non-scaling-stroke;
+  }
+
+  .mlp__network {
+    width: 100%;
+    height: auto;
+    overflow: visible;
+  }
+
+  .mlp__network :global(circle) {
+    fill: var(--color-bg);
+    stroke: var(--color-ink);
+    stroke-width: 1;
+  }
+
+  .mlp__controls {
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  .mlp__group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .mlp__button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: var(--space-1) var(--space-3);
+    border: 1px solid var(--color-line);
+    border-radius: 999px;
+    background: none;
+    font-size: var(--text-sm);
+    cursor: pointer;
+    transition:
+      background-color var(--dur-quick) var(--ease-out),
+      color var(--dur-quick) var(--ease-out),
+      border-color var(--dur-quick) var(--ease-out);
+  }
+
+  .mlp__button:hover {
+    border-color: var(--color-ink);
+  }
+
+  .mlp__button[aria-pressed='true'] {
+    background: var(--color-ink);
+    border-color: var(--color-ink);
+    color: var(--color-bg);
+  }
+
+  .mlp__swatch {
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 50%;
+    border: 1px solid var(--color-bg);
+  }
+
+  .mlp__swatch--a {
+    background: var(--color-accent);
+  }
+
+  .mlp__swatch--b {
+    background: var(--color-ink);
+  }
+
+  .mlp__button[aria-pressed='true'] .mlp__swatch--b {
+    background: var(--color-bg);
+  }
+
+  .mlp__hint {
+    color: var(--color-muted);
+    font-size: var(--text-sm);
+  }
+</style>

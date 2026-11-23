@@ -1,0 +1,223 @@
+---
+/**
+ * The loss landscape (About): a gradient descent with momentum across a loss surface
+ * (src/motion/landscape.ts), with the experience entries as checkpoints along the way,
+ * oldest first.
+ *
+ * Without WebGL or with motion reduced, a top-down plot: the surface as a dot matrix
+ * (bigger dots are lower loss), the path, and the checkpoints. With the particle hero
+ * running, the particles form the surface in 3D; as the section is scrolled through, a
+ * ball rolls down the path, its trail appears behind it and the checkpoints light up as
+ * it passes them (src/motion/hero). Same data attributes as the embedding space, so the
+ * same 3D view drives both.
+ */
+import { checkpoints, descend, descentReadout, DOMAIN, LEARNING_RATE, loss, lossRange, MOMENTUM, STEPS, stepAt } from '../motion/landscape';
+import { timeline } from '../profile';
+
+const steps = descend();
+const [low, high] = lossRange();
+const entries = [...timeline].reverse(); // oldest first, like a training run
+const at = checkpoints(steps, entries.length);
+
+// The plot: x right, y up, both in [-DOMAIN, DOMAIN], drawn into a 0-100 box.
+const px = (x: number) => 50 + (x / DOMAIN) * 46;
+const py = (y: number) => 50 - (y / DOMAIN) * 46;
+const GRID = 30;
+const dots = Array.from({ length: GRID * GRID }, (_, k) => {
+  const x = -DOMAIN + (2 * DOMAIN * (k % GRID)) / (GRID - 1);
+  const y = -DOMAIN + (2 * DOMAIN * Math.floor(k / GRID)) / (GRID - 1);
+  const depth = 1 - (loss(x, y) - low) / (high - low);
+  return { cx: px(x).toFixed(2), cy: py(y).toFixed(2), r: (0.15 + 0.85 * depth ** 2.2).toFixed(3) };
+});
+const pathData = steps.map((s, i) => `${i ? 'L' : 'M'}${px(s.x).toFixed(2)} ${py(s.y).toFixed(2)}`).join('');
+const marks = entries.map((entry, i) => {
+  const step = stepAt(steps, at[i]!);
+  return { entry, left: px(step.x), top: py(step.y) };
+});
+---
+
+<section class="section landscape" aria-labelledby="landscape-title" data-landscape>
+  <div class="landscape__stage container" data-space-stage>
+    <div class="landscape__head">
+      <h2 id="landscape-title" class="eyebrow">Loss landscape</h2>
+      <p class="landscape__caption">
+        Gradient descent with momentum (learning rate {LEARNING_RATE}, momentum {MOMENTUM}, {STEPS} steps) down a loss
+        surface. Scroll to step through the run; the checkpoints are my experience, oldest first.
+      </p>
+    </div>
+    <div class="landscape__plot">
+      <svg class="landscape__static" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+        {dots.map((dot) => <circle cx={dot.cx} cy={dot.cy} r={dot.r} />)}
+        <path d={pathData} />
+      </svg>
+      <ol class="landscape__checkpoints" role="list" data-space-labels>
+        {
+          marks.map(({ entry, left, top }, index) => (
+            <li
+              class:list={['landscape__checkpoint', { 'is-flipped': left > 62 }]}
+              data-space-point={index}
+              style={`--x: ${left.toFixed(2)}; --y: ${top.toFixed(2)}`}
+            >
+              <span class="landscape__years">{entry.years}</span>
+              <span class="landscape__title">{entry.title}</span>
+            </li>
+          ))
+        }
+      </ol>
+    </div>
+    <p class="landscape__readout" data-landscape-readout>{descentReadout(STEPS)}</p>
+  </div>
+</section>
+
+<style>
+  .landscape {
+    position: relative;
+  }
+
+  html[data-motion='full'] .landscape {
+    height: 220svh;
+  }
+
+  .landscape__stage {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    gap: var(--space-4);
+    height: min(80svh, 48rem);
+  }
+
+  html[data-motion='full'] .landscape__stage {
+    position: sticky;
+    top: calc(50svh - min(40svh, 24rem));
+  }
+
+  .landscape__head {
+    display: grid;
+    gap: var(--space-2);
+    max-width: 36rem;
+  }
+
+  .landscape__caption,
+  .landscape__readout {
+    color: var(--color-muted);
+    font-size: var(--text-sm);
+  }
+
+  .landscape__readout {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* The static plot and the labels share one square-ish box. */
+  .landscape__plot {
+    position: relative;
+    min-height: 0;
+    /* The static labels are placed in the square plot's units (cq). */
+    container-type: size;
+  }
+
+  .landscape__static {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    transition: opacity var(--dur-slow) var(--ease-out);
+  }
+
+  .landscape__static circle {
+    fill: var(--color-muted);
+    opacity: 0.55;
+  }
+
+  .landscape__static path {
+    fill: none;
+    stroke: var(--color-accent);
+    stroke-width: 0.45;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+  }
+
+  /* With the particles drawing the surface, the static plot steps aside. */
+  :global(.hero-live) .landscape__static {
+    opacity: 0;
+  }
+
+  .landscape__checkpoints {
+    position: absolute;
+    inset: 0;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    overflow-x: clip;
+  }
+
+  /* Static positions (0-100 in the square plot, centred in the box like the SVG). */
+  .landscape__checkpoint {
+    position: absolute;
+    left: calc(50cqw + (var(--x) - 50) * min(1cqw, 1cqh));
+    top: calc(50cqh + (var(--y) - 50) * min(1cqw, 1cqh));
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    padding-left: 0.9rem;
+    white-space: nowrap;
+    transform: translate(-0.45rem, -50%);
+    font-size: var(--text-sm);
+  }
+
+  .landscape__checkpoint::before {
+    content: '';
+    position: absolute;
+    left: 0.15rem;
+    top: 50%;
+    width: 0.6rem;
+    height: 0.6rem;
+    margin-top: -0.3rem;
+    border-radius: 50%;
+    background: var(--color-accent);
+  }
+
+  .landscape__checkpoint.is-flipped {
+    flex-direction: row-reverse;
+    padding: 0 0.9rem 0 0;
+    transform: translate(calc(-100% + 0.45rem), -50%);
+  }
+
+  .landscape__checkpoint.is-flipped::before {
+    left: auto;
+    right: 0.15rem;
+  }
+
+  .landscape__years {
+    font-family: var(--font-mono);
+    color: var(--color-muted);
+  }
+
+  .landscape__title {
+    font-weight: 600;
+  }
+
+  /* Narrow plots: the title alone, so labels fit beside their checkpoint. */
+  @container (max-width: 30rem) {
+    .landscape__years {
+      display: none;
+    }
+  }
+
+  /* Projected by src/motion/hero/space.ts: placed with a transform, every frame. */
+  .landscape__stage:global(.is-projected) .landscape__checkpoint {
+    left: 0;
+    top: 0;
+    will-change: transform, opacity;
+  }
+
+  .landscape__stage:global(.is-projected) .landscape__checkpoint::before {
+    width: 0.4rem;
+    height: 0.4rem;
+    margin-top: -0.2rem;
+    opacity: 0.4;
+  }
+
+  .landscape__checkpoint:global(.is-reached)::before {
+    opacity: 1;
+  }
+</style>

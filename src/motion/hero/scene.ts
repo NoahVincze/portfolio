@@ -33,8 +33,9 @@ import { gsapEase, seconds } from '../tokens';
 import { provideDiffusion } from '../diffusion';
 import { createCoverEffects } from './covers';
 import { createSpaceView } from './space';
-import { cssColor, pointLayout, readPageLayouts, scatteredPositions, type Layout, type PageLayouts, type RGB } from './layouts';
-import { FIELD_ALPHA, FIELD_SIZE, fragmentShader, SPACE_BACK_ALPHA, SPACE_HALO_ALPHA, vertexShader } from './shaders';
+import { cssColor, pointLayout, readPageLayouts, scatteredPositions, type Layout, type PageLayouts, type RGB, type SpaceLayout } from './layouts';
+import { descentReadout } from '../landscape';
+import { FIELD_ALPHA, FIELD_SIZE, fragmentShader, GROUP, SPACE_BACK_ALPHA, SPACE_HALO_ALPHA, SURFACE_ALPHA, vertexShader } from './shaders';
 
 export interface HeroScene {
   /** Compiles the shaders without blocking the page (call once before the first start). */
@@ -51,6 +52,7 @@ const smoothstep = (e0: number, e1: number, x: number) => {
 };
 /** GLSL's mod (always positive for a positive divisor), unlike JavaScript's %. */
 const mod = (x: number, y: number) => x - y * Math.floor(x / y);
+const ZERO = new Vector3();
 const NO_FIELD = { from: 1, rect: [0, 0, 1, 1] as [number, number, number, number] };
 /**
  * Home: the part of the scroll morph (0 to 1) over which the first cover denoises. The
@@ -61,6 +63,8 @@ const LANDING_FROM = 0.74;
 /** Embedding space particles: opacity and point size (CSS px, before perspective). */
 const SPACE_ALPHA = 0.9;
 const SPACE_SIZE = 2.1;
+/** Landscape: the share of its scroll by which the ball reaches the minimum. */
+const ARRIVE_AT = 0.8;
 const LANDING_TO = 0.98;
 
 export function createHeroScene(canvas: HTMLCanvasElement): HeroScene | null {
@@ -132,6 +136,10 @@ export function createHeroScene(canvas: HTMLCanvasElement): HeroScene | null {
     uAlphaE: { value: SPACE_ALPHA },
     uSizeE: { value: SPACE_SIZE },
     uHighlight: { value: -1 },
+    uBall: { value: new Vector3() },
+    uTintUpTo: { value: 1 },
+    uBallAlpha: { value: 1 },
+    uHits: { value: space.hits },
   };
 
   const material = new ShaderMaterial({
@@ -158,6 +166,12 @@ export function createHeroScene(canvas: HTMLCanvasElement): HeroScene | null {
   let prevColor: RGB = [0, 0, 0];
   let morphTrigger: ScrollTrigger | null = null;
   let spaceTrigger: ScrollTrigger | null = null;
+  let leaveTrigger: ScrollTrigger | null = null;
+  /** Scroll progress into the 3D scene, and (About) back out of it. */
+  const spaceScroll = { in: 0, out: 0 };
+  /** The scroll range over which the scene holds still in its stage, cached at each refresh. */
+  let spaceBounds: { arrive: number; release: number } | null = null;
+  let readoutStep = -1;
   let regroupTween: gsap.core.Tween | null = null;
   let stopRendering: (() => void) | null = null;
   let running = false;
@@ -278,12 +292,27 @@ export function createHeroScene(canvas: HTMLCanvasElement): HeroScene | null {
       let alphaE = 0;
       let sizeE = 0;
       if (e > 0) {
-        const [px, py, persp, depth] = space.project(spacePositions[i * 3]!, spacePositions[i * 3 + 1]!, spacePositions[i * 3 + 2]!);
-        const halo = spaceInfo[i * 2 + 1]! < -0.5;
+        const group = spaceInfo[i * 2 + 1]!;
+        const ballAt = group === GROUP.ball ? uniforms.uBall.value : ZERO;
+        // (Hits only change brightness, which the handover can ignore.)
+        const [px, py, persp, depth] = space.project(
+          spacePositions[i * 3]! + ballAt.x,
+          spacePositions[i * 3 + 1]! + ballAt.y,
+          spacePositions[i * 3 + 2]! + ballAt.z,
+        );
+        const halo = group === GROUP.halo;
+        const tint = spaceInfo[i * 2]!;
+        const hiddenTrail = group === GROUP.trail && tint > uniforms.uTintUpTo.value;
         ex = px;
         ey = py;
-        alphaE = SPACE_ALPHA * mix(SPACE_BACK_ALPHA, 1, depth) * (halo ? SPACE_HALO_ALPHA : 1);
-        sizeE = SPACE_SIZE * persp * (halo ? FIELD_SIZE : 1);
+        alphaE =
+          SPACE_ALPHA *
+          mix(SPACE_BACK_ALPHA, 1, depth) *
+          (halo ? SPACE_HALO_ALPHA : 1) *
+          (group === GROUP.surface ? SURFACE_ALPHA : 1) *
+          (group === GROUP.ball ? uniforms.uBallAlpha.value : 1) *
+          (hiddenTrail ? 0 : 1);
+        sizeE = SPACE_SIZE * persp * (halo ? FIELD_SIZE : 1) * (group === GROUP.ball ? 1.5 : 1);
       }
       const toward = Math.sin(Math.PI * e) * (40 + 200 * z);
       const tx = mix(ax, ex, e) + dx * toward;
@@ -322,23 +351,45 @@ export function createHeroScene(canvas: HTMLCanvasElement): HeroScene | null {
   }
 
   /**
-   * Reads the current page's layouts and, on home, ties the morphs to scrolling: into the
-   * embedding space while its stage scrolls up to the middle of the window, then (once
-   * the stage is about to leave) on to the first cover.
+   * Reads the current page's layouts and ties the morphs to scrolling: into the 3D scene
+   * (home: embedding space, About: loss landscape) while its stage scrolls up to the middle
+   * of the window; then, once the stage is about to leave, on to the first cover (home) or
+   * back into the page's dust (About).
    */
   function setupPage(): void {
     killTriggers();
     applyLayouts(readPageLayouts(count));
     const hasSpace = Boolean(layouts?.space);
+    const measure = () => (spaceBounds = space.measure());
+    spaceBounds = null;
+    spaceScroll.in = 0;
+    spaceScroll.out = 0;
+    readoutStep = -1;
     if (hasSpace) {
+      const sync = () => {
+        state.space = spaceScroll.in * (1 - spaceScroll.out);
+      };
       spaceTrigger = ScrollTrigger.create({
         start: 0,
-        end: () => space.measure()?.arrive ?? 1,
+        end: () => measure()?.arrive ?? 1,
         onUpdate: (self) => {
-          state.space = self.progress;
+          spaceScroll.in = self.progress;
+          sync();
         },
       });
-      state.space = spaceTrigger.progress;
+      spaceScroll.in = spaceTrigger.progress;
+      if (!layouts?.morphEnd) {
+        leaveTrigger = ScrollTrigger.create({
+          start: () => measure()?.release ?? 0,
+          end: () => (spaceBounds?.release ?? 0) + innerHeight * 0.6,
+          onUpdate: (self) => {
+            spaceScroll.out = self.progress;
+            sync();
+          },
+        });
+        spaceScroll.out = leaveTrigger.progress;
+      }
+      sync();
     } else {
       state.space = 0;
     }
@@ -362,6 +413,36 @@ export function createHeroScene(canvas: HTMLCanvasElement): HeroScene | null {
     morphTrigger = null;
     spaceTrigger?.kill();
     spaceTrigger = null;
+    leaveTrigger?.kill();
+    leaveTrigger = null;
+  }
+
+  /**
+   * About: the ball's place on the descent follows the scroll through the landscape's
+   * stage; the trail is revealed up to it and the readout shows the step and loss.
+   */
+  function updateDescent(scene: SpaceLayout): void {
+    const bounds = spaceBounds ?? (spaceBounds = space.measure());
+    const path = scene.path;
+    if (!bounds || !path?.length) return;
+    // The ball arrives at 80% of the scroll; the rest is the run settling into the minimum.
+    const scrolled = Math.min(1, Math.max(0, (scrollY - bounds.arrive) / (bounds.release - bounds.arrive)));
+    const arrival = scene.arrival ?? 1;
+    const p = scrolled < ARRIVE_AT ? (scrolled / ARRIVE_AT) * arrival : arrival + ((scrolled - ARRIVE_AT) / (1 - ARRIVE_AT)) * (1 - arrival);
+    const at = p * (path.length - 1);
+    const i = Math.floor(at);
+    const a = path[i]!;
+    const b = path[Math.min(i + 1, path.length - 1)]!;
+    const t = at - i;
+    uniforms.uBall.value.set(mix(a[0], b[0], t), mix(a[1], b[1], t), mix(a[2], b[2], t));
+    uniforms.uTintUpTo.value = Math.max(p, 0.001);
+    space.progress = p;
+
+    const step = Math.round(at);
+    if (scene.readout && step !== readoutStep) {
+      readoutStep = step;
+      scene.readout.textContent = descentReadout(step);
+    }
   }
 
   function render(time: number, deltaTime: number): void {
@@ -389,7 +470,16 @@ export function createHeroScene(canvas: HTMLCanvasElement): HeroScene | null {
         x: pointer.strength * (pointer.x / innerWidth - 0.5),
         y: pointer.strength * (pointer.y / innerHeight - 0.5),
       };
-      space.update(time, toward, state.space * state.regroup, state.morph);
+      space.update(time, toward, spaceScroll.in * state.regroup, Math.max(state.morph, spaceScroll.out));
+      if (layouts.space.kind === 'landscape') {
+        updateDescent(layouts.space);
+        uniforms.uBallAlpha.value = 1;
+      } else {
+        // The embedding space's ball is the visitor's question (Ask), when there is one.
+        uniforms.uTintUpTo.value = 1;
+        uniforms.uBall.value.copy(space.query);
+        uniforms.uBallAlpha.value = space.queryAlpha;
+      }
     }
     uniforms.uSpace.value = state.space;
     uniforms.uEScale.value = space.scale;
@@ -441,6 +531,9 @@ export function createHeroScene(canvas: HTMLCanvasElement): HeroScene | null {
   document.documentElement.addEventListener('pointerleave', () => {
     pointer.target = 0;
   });
+
+  // Ask: a question to fly into the embedding space (or null to clear it).
+  addEventListener('space:query', (event) => space.setQuery(event.detail));
 
   // Work map: the filter re-clustered the projects; the clusters follow (as long as the labels glide).
   addEventListener('work:map', () => {

@@ -34,6 +34,8 @@ export interface CorpusItem {
   label: string;
   /** What gets embedded. */
   text: string;
+  /** A short excerpt to show when the item comes up in a search. */
+  snippet: string;
   /** Passages: the id of their project. */
   parent?: string;
   /** Projects: their page. */
@@ -69,19 +71,29 @@ export function buildCorpus(projects: readonly CorpusProject[], profile: CorpusP
       id: `project:${project.id}`,
       kind: 'project',
       label: project.title,
-      text: [project.title, project.summary, project.tags.join(', '), plainText(project.body)].filter(Boolean).join('. '),
+      text: [project.title, project.summary, project.tags.join(', '), plainText(project.body)]
+        .map((part) => part.trim().replace(/[.!?]$/, ''))
+        .filter(Boolean)
+        .join('. '),
       href: `/work/${project.id}/`,
       tags: project.tags,
+      snippet: project.summary,
     });
     paragraphs(project.body).forEach((text, i) => {
-      items.push({ id: `passage:${project.id}:${i}`, kind: 'passage', label: '', text, parent: `project:${project.id}` });
+      items.push({ id: `passage:${project.id}:${i}`, kind: 'passage', label: '', text, snippet: text, parent: `project:${project.id}` });
     });
   }
   for (const skill of profile.skills) {
-    items.push({ id: `skill:${slug(skill)}`, kind: 'skill', label: skill, text: skill });
+    items.push({ id: `skill:${slug(skill)}`, kind: 'skill', label: skill, text: skill, snippet: 'Skills and tools' });
   }
   profile.timeline.forEach((entry, i) => {
-    items.push({ id: `experience:${i}`, kind: 'experience', label: entry.title, text: `${entry.title}. ${entry.text}` });
+    items.push({
+      id: `experience:${i}`,
+      kind: 'experience',
+      label: entry.title,
+      text: `${entry.title}. ${entry.text}`,
+      snippet: `${entry.years}. ${entry.text}`,
+    });
   });
   return items;
 }
