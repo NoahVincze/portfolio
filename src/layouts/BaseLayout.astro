@@ -69,7 +69,7 @@ const introChars = [...site.name].map((char) => (char === ' ' ? '\u00a0' : char)
     </div>
     {/* The particle hero. One canvas, kept alive across page navigations. */}
     <canvas class="hero-canvas" transition:persist="hero-canvas" aria-hidden="true"></canvas>
-    {/* Custom cursor (mouse and trackpad only). The system cursor stays visible. */}
+    {/* Custom cursor (mouse and trackpad only). Replaces the system cursor while it shows. */}
     <div class="cursor" transition:persist="cursor" aria-hidden="true">
       <span class="cursor__circle"></span>
       <span class="cursor__label">View</span>
