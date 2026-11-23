@@ -213,13 +213,19 @@ main:focus {
 /* ---------- Reveals ---------- */
 
 /*
- * Elements that animate in are hidden only when scripts run (the inline head script sets
- * data-motion). The effects in src/motion/effects show them. If that code fails to load,
- * this fallback shows them after 3 s, so content is never held hostage.
+ * Text that animates in is hidden only when scripts run (the inline head script sets
+ * data-motion). The effects in src/motion/effects show it. If that code fails to load,
+ * this fallback shows it after 3 s, so content is never held hostage. Images are not hidden
+ * here: the image effect hides only those the visitor has not seen yet.
  */
-html[data-motion] :is([data-reveal], .prose h2) {
+html[data-motion] :is([data-reveal='lines'], .prose h2):not([data-revealed]) {
   visibility: hidden;
   animation: reveal-fallback 0s linear 3s forwards;
+}
+
+/* During the first-visit intro the hero name is already visible under the panel. */
+html[data-intro] .hero__name {
+  visibility: visible;
 }
 
 @keyframes reveal-fallback {
@@ -253,6 +259,17 @@ html[data-motion] :is([data-reveal], .prose h2) {
   will-change: transform;
 }
 
+[data-reveal-media] img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* While the WebGL hover effect draws a cover, the HTML image steps aside (see hero/hover.ts). */
+.is-shader-active [data-reveal-media] {
+  visibility: hidden;
+}
+
 /* ---------- Particle hero ---------- */
 
 /*
@@ -282,6 +299,150 @@ html[data-motion] :is([data-reveal], .prose h2) {
 
 .hero-live .hero__name {
   opacity: 0;
+}
+
+/* ---------- First-visit intro ---------- */
+
+/*
+ * Pure CSS from the first paint (src/motion/intro.ts only records it and cleans up).
+ * The letters assemble (about 0.6 s), then the panel wipes away from the bottom (0.4 s),
+ * uncovering the hero name in the same place. Total: 1.1 s.
+ */
+.site-intro {
+  display: none;
+}
+
+html[data-intro='play'] .site-intro {
+  display: block;
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: var(--color-bg);
+  animation: intro-wipe var(--dur-base) var(--ease-in-out) 700ms forwards;
+}
+
+/* Mirrors the hero's layout, so the name lines up with the real heading underneath. */
+.site-intro__inner {
+  display: grid;
+  align-content: end;
+  gap: var(--space-4);
+  min-height: 100svh;
+  padding-block: calc(4rem + var(--space-6)) var(--space-6);
+}
+
+.site-intro__name {
+  font-size: var(--text-display);
+  font-weight: 600;
+  line-height: 0.9;
+  letter-spacing: -0.045em;
+}
+
+.site-intro__line {
+  display: block;
+  overflow: clip;
+  padding-bottom: 0.15em;
+  margin-bottom: -0.15em;
+}
+
+.site-intro__char {
+  display: inline-block;
+  transform: translateY(110%);
+  animation: intro-char var(--dur-base) var(--ease-out) calc(var(--i) * var(--stagger-char)) forwards;
+}
+
+.site-intro__tagline {
+  max-width: 32rem;
+  font-size: var(--text-lg);
+  visibility: hidden;
+}
+
+@keyframes intro-char {
+  to {
+    transform: none;
+  }
+}
+
+@keyframes intro-wipe {
+  from {
+    clip-path: inset(0 0 0 0);
+  }
+  to {
+    clip-path: inset(0 0 100% 0);
+    visibility: hidden;
+  }
+}
+
+/* ---------- Custom cursor ---------- */
+
+.cursor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 90;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--dur-quick) var(--ease-out);
+}
+
+.cursor.is-visible {
+  opacity: 1;
+}
+
+html[data-motion='reduced'] .cursor {
+  display: none;
+}
+
+.cursor__circle {
+  position: absolute;
+  top: -1.25rem;
+  left: -1.25rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: var(--color-ink);
+  border: 1px solid var(--color-ink);
+  transform: scale(0.2);
+  transition:
+    transform var(--dur-base) var(--ease-out),
+    background-color var(--dur-quick) var(--ease-out);
+}
+
+.cursor[data-cursor-state='link'] .cursor__circle {
+  background: transparent;
+  transform: scale(1);
+}
+
+.cursor[data-cursor-state='view'] .cursor__circle {
+  transform: scale(2.2);
+}
+
+.cursor__label {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-bg);
+  opacity: 0;
+  transition: opacity var(--dur-quick) var(--ease-out);
+}
+
+.cursor[data-cursor-state='view'] .cursor__label {
+  opacity: 1;
+  transition-delay: var(--dur-instant);
+}
+
+/* ---------- Magnetic links ---------- */
+
+[data-magnetic] {
+  position: relative;
+  display: inline-block;
+}
+
+/* A slightly larger catch area, so the pull starts just before the pointer arrives. */
+[data-magnetic]::after {
+  content: '';
+  position: absolute;
+  inset: -0.75rem;
 }
 
 /* ---------- Reading progress (project pages) ---------- */

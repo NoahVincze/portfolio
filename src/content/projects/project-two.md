@@ -7,6 +7,7 @@ tags: [Web, Motion]
 featured: true
 order: 2
 accent: '#a9b7b0'
+cover: /covers/project-two.svg
 ---
 
 PLACEHOLDER. Start with the problem: who it was for and what was hard about it.

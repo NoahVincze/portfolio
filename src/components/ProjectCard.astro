@@ -5,15 +5,17 @@ interface Props {
   project: Project;
   /** Heading level for the title, so cards fit the page outline. */
   headingLevel?: 'h2' | 'h3';
+  /** Load the cover straight away (for a card that is on screen when the page opens). */
+  priority?: boolean;
 }
 
-const { project, headingLevel: Heading = 'h3' } = Astro.props;
-const { title, summary, year, tags, accent } = project.data;
+const { project, headingLevel: Heading = 'h3', priority = false } = Astro.props;
+const { title, summary, year, tags, accent, cover } = project.data;
 const url = projectUrl(project);
 ---
 
 <article class="card">
-  <a class="card__link" href={url}>
+  <a class="card__link" href={url} data-cursor="view" data-hover-shader>
     {/* Shares its transition name with the project page cover, so one morphs into the other. */}
     <div
       class="card__cover"
@@ -22,7 +24,21 @@ const url = projectUrl(project);
       transition:name={`cover-${project.id}`}
       aria-hidden="true"
     >
-      <div data-reveal-media style={`--cover: ${accent}`}></div>
+      <div data-reveal-media style={`--cover: ${accent}`}>
+        {
+          cover && (
+            <img
+              src={cover}
+              alt=""
+              width="1600"
+              height="1200"
+              loading={priority ? 'eager' : 'lazy'}
+              fetchpriority={priority ? 'high' : 'auto'}
+              decoding="async"
+            />
+          )
+        }
+      </div>
     </div>
     <div class="card__meta">
       <Heading class="card__title">{title}</Heading>

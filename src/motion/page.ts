@@ -9,6 +9,7 @@
  */
 import type { TransitionBeforeSwapEvent } from 'astro:transitions/client';
 import { gsap, ScrollTrigger } from './gsap';
+import { introFinished } from './intro';
 import { isReduced } from './preference';
 
 export interface PageEffectEnv {
@@ -19,9 +20,19 @@ export interface PageEffectEnv {
    * through the page transition, so their own entrance animation is skipped.
    */
   morphed: ReadonlySet<string>;
+  /**
+   * True when the visitor has already seen this page's content (first load, or a rebuild).
+   * False right after a client-side navigation, before the new page is first shown, when
+   * hiding on-screen elements for an entrance cannot cause a flash.
+   */
+  painted: boolean;
 }
 
-export type PageEffect = (env: PageEffectEnv) => void;
+/**
+ * An effect may return a cleanup function for anything GSAP cannot revert by itself
+ * (event listeners, classes it added). It runs when the page is left or rebuilt.
+ */
+export type PageEffect = (env: PageEffectEnv) => void | (() => void);
 
 const effects: PageEffect[] = [];
 let context: gsap.Context | null = null;
@@ -29,22 +40,34 @@ let builtFor: Element | null = null;
 let morphed: ReadonlySet<string> = new Set();
 let navigating = false;
 let started = false;
+let introDone = false;
+void introFinished.then(() => {
+  introDone = true;
+});
 
 /** Registers an effect. It runs once per page, inside a gsap.context that is reverted on leave. */
 export function definePageEffect(effect: PageEffect): void {
   effects.push(effect);
 }
 
-function build(): void {
+function build(painted = true): void {
   const main = document.querySelector('main');
   if (!main || builtFor === main) return;
   teardown();
   builtFor = main;
-  const env: PageEffectEnv = { reduced: isReduced(), morphed };
+  const env: PageEffectEnv = { reduced: isReduced(), morphed, painted };
   context = gsap.context(() => {
-    for (const effect of effects) effect(env);
+    const cleanups = effects.map((effect) => effect(env)).filter((cleanup) => typeof cleanup === 'function');
+    return () => cleanups.forEach((cleanup) => cleanup());
   });
   ScrollTrigger.refresh();
+}
+
+/** Tears the current page's effects down and builds them again (e.g. after a breakpoint change). */
+export function rebuildPageEffects(): void {
+  if (!started) return;
+  teardown();
+  build();
 }
 
 function teardown(): void {
@@ -92,7 +115,8 @@ export function startPageEffects(): void {
   });
   // Fires on first load too (on window load). `build` skips a page that is already built.
   document.addEventListener('astro:page-load', () => {
-    build();
+    if (!navigating && !introDone) return;
+    build(!navigating);
     if (navigating) {
       navigating = false;
       focusMainHeading();
@@ -104,9 +128,9 @@ export function startPageEffects(): void {
     build();
   });
 
-  // Module scripts run after the document is parsed, so the first page can build right away
-  // instead of waiting for every image to load.
-  build();
+  // Module scripts run after the document is parsed, so the first page can build as soon as
+  // the first-visit intro (if any) is done, instead of waiting for every image to load.
+  void introFinished.then(() => build());
 
   if (import.meta.env.DEV) {
     Object.assign(window, {

@@ -19,6 +19,8 @@ const delayOf = (el: HTMLElement) => Number(el.dataset.revealDelay ?? 0) / 1000;
 
 definePageEffect(({ reduced }) => {
   for (const el of document.querySelectorAll<HTMLElement>(LINE_REVEAL_SELECTOR)) {
+    // Already shown another way (the first-visit intro reveals the hero name itself).
+    if (el.hasAttribute('data-revealed')) continue;
     const scrollTrigger = { trigger: el, start: 'top 90%', once: true };
 
     if (reduced) {

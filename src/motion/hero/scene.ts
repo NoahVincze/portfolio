@@ -6,6 +6,7 @@
  * Other pages: they settle into a faint field behind the content.
  * Navigation: the canvas persists across pages and the particles regroup into the new
  * page's layout instead of reloading.
+ * Project covers: a ripple and RGB-split hover effect (./hover.ts) on the same canvas.
  *
  * This module pulls in Three.js, so it is only ever loaded with a dynamic import
  * (see ./index.ts), after the page has painted and the browser is idle.
@@ -24,6 +25,7 @@ import {
 import { gsap, ScrollTrigger } from '../gsap';
 import { onFrame } from '../loop';
 import { gsapEase, seconds } from '../tokens';
+import { createHoverEffect } from './hover';
 import { readPageLayouts, scatteredPositions, type PageLayouts, type RGB } from './layouts';
 import { fragmentShader, vertexShader } from './shaders';
 
@@ -109,8 +111,10 @@ export function createHeroScene(canvas: HTMLCanvasElement): HeroScene | null {
   });
   const points = new Points(geometry, material);
   points.frustumCulled = false;
+  const hover = createHoverEffect(uniforms.uViewport.value, maxPixelRatio);
+  hover.mesh.renderOrder = 1; // a hovered cover sits above the dust, like the HTML images do
   const scene = new Scene();
-  scene.add(points);
+  scene.add(hover.mesh, points);
   const camera = new OrthographicCamera(-1, 1, 1, -1, 0, 1); // projection happens in the shader
 
   // ---- State
@@ -243,8 +247,11 @@ export function createHeroScene(canvas: HTMLCanvasElement): HeroScene | null {
     uniforms.uMorph.value = state.morph;
     uniforms.uRegroup.value = state.regroup;
 
-    // Nothing to show (home, scrolled past the hero, particles faded): draw one empty frame, then rest.
-    const idle = Boolean(layouts?.fadeOnArrival) && state.morph >= 0.999 && state.regroup >= 1;
+    const hovering = hover.update(time);
+
+    // Nothing to show (home, scrolled past the hero, particles faded, no cover hovered):
+    // draw one empty frame, then rest.
+    const idle = !hovering && Boolean(layouts?.fadeOnArrival) && state.morph >= 0.999 && state.regroup >= 1;
     if (idle && idleFrameDrawn) return;
     idleFrameDrawn = idle;
     renderer.render(scene, camera);
@@ -308,8 +315,11 @@ export function createHeroScene(canvas: HTMLCanvasElement): HeroScene | null {
     running = true;
     resize();
     setupPage();
-    // Intro: particles gather from across the screen into the page's layout.
-    applyPrev(scatteredPositions(count), { ...prevStyleFrom(layouts!), alpha: 0 });
+    // Right after the first-visit intro the solid name is on screen: particles appear on top
+    // of its letters and shimmer in. Otherwise they gather from across the screen.
+    const handoff = Boolean(document.querySelector('.hero__name[data-revealed]'));
+    const from = handoff ? viewportPositions(layouts!.a) : scatteredPositions(count);
+    applyPrev(from, { ...prevStyleFrom(layouts!), alpha: 0 });
     regroup();
     stopRendering = onFrame(render);
     requestAnimationFrame(() => {
@@ -325,6 +335,7 @@ export function createHeroScene(canvas: HTMLCanvasElement): HeroScene | null {
     regroupTween?.kill();
     morphTrigger?.kill();
     morphTrigger = null;
+    hover.release();
     document.documentElement.classList.remove(LIVE_CLASS);
   }
 
@@ -333,6 +344,13 @@ export function createHeroScene(canvas: HTMLCanvasElement): HeroScene | null {
   }
 
   return { start, stop };
+}
+
+/** A layout's positions on screen right now (prev positions are in viewport pixels). */
+function viewportPositions(layout: PageLayouts['a']): Float32Array {
+  const out = new Float32Array(layout.positions);
+  for (let i = 1; i < out.length; i += 2) out[i] = out[i]! - scrollY * layout.scrollFactor;
+  return out;
 }
 
 function prevStyleFrom(layouts: PageLayouts): Style {

@@ -14,12 +14,14 @@ const featured = await getFeaturedProjects();
     <p class="hero__tagline" data-reveal="lines" data-reveal-delay="200">{site.tagline}</p>
   </section>
 
-  <section class="section container" aria-labelledby="selected-work">
-    <div class="section-head">
-      <h2 id="selected-work" class="eyebrow">Selected work</h2>
-      <a href="/work/">All projects</a>
-    </div>
-    <ul class="work-list" role="list">
+  {/* On wide screens with motion on, this section pins and the cards slide sideways (src/motion/effects/horizontal.ts). */}
+  <section class="section work" aria-labelledby="selected-work" data-horizontal>
+    <div class="container">
+      <div class="section-head">
+        <h2 id="selected-work" class="eyebrow">Selected work</h2>
+        <a href="/work/" data-magnetic>All projects</a>
+      </div>
+      <ul class="work-list" role="list" data-horizontal-track>
       {
         featured.map((project) => (
           <li>
@@ -27,7 +29,8 @@ const featured = await getFeaturedProjects();
           </li>
         ))
       }
-    </ul>
+      </ul>
+    </div>
   </section>
 
   <section class="section container intro" aria-labelledby="about-teaser">
@@ -36,7 +39,7 @@ const featured = await getFeaturedProjects();
       PLACEHOLDER. Two sentences about who you are, what you make and what you care about. Keep it
       short; the About page has the full story.
     </p>
-    <a href="/about/">More about me</a>
+    <a href="/about/" data-magnetic>More about me</a>
   </section>
 </BaseLayout>
 
@@ -67,6 +70,21 @@ const featured = await getFeaturedProjects();
     gap: var(--space-6) var(--space-5);
     list-style: none;
     padding: 0;
+  }
+
+  /* Sideways mode, switched on by the horizontal effect. The section clips at the screen
+     edges, so cards slide in from the right edge rather than from the gutter. */
+  .work.is-horizontal {
+    overflow-x: clip;
+  }
+
+  .work.is-horizontal .work-list {
+    display: flex;
+    gap: var(--space-5);
+  }
+
+  .work.is-horizontal .work-list > li {
+    flex: 0 0 clamp(24rem, 52vw, 48rem);
   }
 
   .intro {

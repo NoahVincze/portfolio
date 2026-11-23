@@ -4,19 +4,37 @@ import ProjectCard from '../../components/ProjectCard.astro';
 import { getProjects } from '../../projects';
 
 const projects = await getProjects();
+const tags = [...new Set(projects.flatMap((project) => project.data.tags))].sort();
 ---
 
 <BaseLayout title="Work" description="All projects, newest first.">
   <section class="section container">
     <div class="page-head">
       <h1 data-reveal="lines">Work</h1>
-      <p class="page-head__count">{projects.length} projects</p>
+      <p class="page-head__count" aria-live="polite" data-filter-count>{projects.length} projects</p>
     </div>
-    <ul class="work-grid" role="list">
+    {/*
+      Wired up by src/motion/effects/filter.ts. Shown from the first paint when JavaScript is
+      on (the inline head script sets <html data-motion>), so nothing shifts; hidden otherwise.
+    */}
+    <div class="filters" data-filters>
+      <p id="filter-label" class="eyebrow">Filter</p>
+      <div class="filters__buttons" role="group" aria-labelledby="filter-label">
+        <button type="button" class="filters__button" data-filter="all" aria-pressed="true" data-magnetic="0.2">All</button>
+        {
+          tags.map((tag) => (
+            <button type="button" class="filters__button" data-filter={tag} aria-pressed="false" data-magnetic="0.2">
+              {tag}
+            </button>
+          ))
+        }
+      </div>
+    </div>
+    <ul class="work-grid" role="list" data-filter-grid>
       {
-        projects.map((project) => (
-          <li>
-            <ProjectCard project={project} headingLevel="h2" />
+        projects.map((project, index) => (
+          <li data-tags={project.data.tags.join('|')}>
+            <ProjectCard project={project} headingLevel="h2" priority={index === 0} />
           </li>
         ))
       }
@@ -43,6 +61,46 @@ const projects = await getProjects();
     font-family: var(--font-mono);
     font-size: var(--text-sm);
     color: var(--color-muted);
+  }
+
+  .filters {
+    display: none;
+  }
+
+  :global(html[data-motion]) .filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3);
+    margin: calc(var(--space-5) * -1) 0 var(--space-6);
+  }
+
+  .filters__buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .filters__button {
+    padding: var(--space-1) var(--space-3);
+    border: 1px solid var(--color-line);
+    border-radius: 999px;
+    background: none;
+    cursor: pointer;
+    transition:
+      background-color var(--dur-quick) var(--ease-out),
+      color var(--dur-quick) var(--ease-out),
+      border-color var(--dur-quick) var(--ease-out);
+  }
+
+  .filters__button:hover {
+    border-color: var(--color-ink);
+  }
+
+  .filters__button[aria-pressed='true'] {
+    background: var(--color-ink);
+    border-color: var(--color-ink);
+    color: var(--color-bg);
   }
 
   .work-grid {

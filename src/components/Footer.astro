@@ -16,7 +16,7 @@ const year = new Date().getFullYear();
         {
           site.socials.map((social) => (
             <li>
-              <a href={social.href} rel="me noopener" target="_blank">
+              <a href={social.href} rel="me noopener" target="_blank" data-magnetic>
                 {social.label}
                 <span class="visually-hidden">(opens in a new tab)</span>
               </a>
