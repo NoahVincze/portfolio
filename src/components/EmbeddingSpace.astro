@@ -1,0 +1,171 @@
+---
+/**
+ * The embedding space: everything on the site, embedded and projected to 3D (src/embedding).
+ *
+ * Without WebGL or with motion reduced, this is a static labelled scatter plot of the first
+ * two principal components. With the particle hero running, the particles gather here into
+ * the 3D point cloud and src/motion/hero moves the labels to follow it (the stage gets
+ * `.is-projected`). The section is tall with a sticky stage, so the visitor scrolls
+ * "through" the space while it turns.
+ */
+import { getEmbeddingSpace } from '../embedding';
+
+const space = await getEmbeddingSpace();
+const labelled = space.points.map((point, index) => ({ point, index })).filter(({ point }) => point.label);
+/** What the particle hero needs, kept small: position, kind and whether it is labelled. */
+const clientPoints = space.points.map((point) => ({ p: point.position, k: point.kind }));
+const counts = {
+  projects: space.points.filter((p) => p.kind === 'project').length,
+  total: space.points.length,
+};
+const percent = (value: number) => `${(50 + value * 42).toFixed(2)}%`;
+---
+
+<section class="section space" aria-labelledby="space-title" data-space>
+  <div class="space__stage container" data-space-stage>
+    <div class="space__head">
+      <h2 id="space-title" class="eyebrow">Embedding space</h2>
+      <p class="space__caption">
+        {counts.total} pieces of this site ({counts.projects} projects, their passages, skills and experience), embedded
+        with {space.source === 'model' ? 'all-MiniLM-L6-v2 into 384 dimensions' : 'a hashed bag of words'} and projected
+        to 3D with PCA. Related things sit close together.
+      </p>
+    </div>
+    <ul class="space__points" role="list" data-space-labels>
+      {
+        labelled.map(({ point, index }) => (
+          <li
+            class:list={['space__point', `space__point--${point.kind}`, { 'is-flipped': point.position[0] > 0.25 }]}
+            data-space-point={index}
+            style={`--x: ${percent(point.position[0])}; --y: ${percent(-point.position[1])}`}
+          >
+            {point.href ? (
+              <a href={point.href} data-cursor="view">
+                {point.label}
+              </a>
+            ) : (
+              <span>{point.label}</span>
+            )}
+          </li>
+        ))
+      }
+    </ul>
+    <p class="space__axes" aria-hidden="true">PC1 · PC2 · PC3</p>
+  </div>
+  <script type="application/json" data-space-points set:html={JSON.stringify(clientPoints)} />
+</section>
+
+<style>
+  .space {
+    position: relative;
+  }
+
+  /* With motion on, the section is tall and the stage sticks, centred, while it is scrolled. */
+  html[data-motion='full'] .space {
+    height: 190svh;
+  }
+
+  .space__stage {
+    position: relative;
+    display: grid;
+    grid-template-rows: auto 1fr;
+    gap: var(--space-4);
+    height: min(78svh, 46rem);
+  }
+
+  html[data-motion='full'] .space__stage {
+    position: sticky;
+    top: calc(50svh - min(39svh, 23rem));
+  }
+
+  .space__head {
+    display: grid;
+    gap: var(--space-2);
+    max-width: 36rem;
+  }
+
+  .space__caption {
+    color: var(--color-muted);
+    font-size: var(--text-sm);
+  }
+
+  .space__points {
+    position: relative;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    /* Labels near the edge flip to the inside, and anything left over never scrolls the page. */
+    overflow-x: clip;
+  }
+
+  .space__point {
+    position: absolute;
+    left: var(--x);
+    top: var(--y);
+    transform: translate(-0.3rem, -50%);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    white-space: nowrap;
+    font-size: var(--text-sm);
+    line-height: 1.2;
+  }
+
+  /* Points on the right put their label on the left of the dot, so it stays on screen. */
+  .space__point.is-flipped {
+    flex-direction: row-reverse;
+    transform: translate(calc(-100% + 0.3rem), -50%);
+  }
+
+  /* The static version's dots (the particles replace them once projected). */
+  .space__point::before {
+    content: '';
+    flex: none;
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 50%;
+    background: var(--color-muted);
+  }
+
+  .space__point--project::before {
+    background: var(--color-accent);
+  }
+
+  .space__point--project a {
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .space__point--skill,
+  .space__point--experience {
+    font-family: var(--font-mono);
+    color: var(--color-muted);
+  }
+
+  /* Projected: src/motion/hero places each label with a transform, every frame. */
+  .space__stage.is-projected .space__point {
+    left: 0;
+    top: 0;
+    will-change: transform, opacity;
+  }
+
+  .space__stage.is-projected .space__point::before {
+    width: 0.3rem;
+    height: 0.3rem;
+    opacity: 0.6;
+  }
+
+  .space__point.is-active a,
+  .space__point.is-active span {
+    color: var(--color-accent);
+  }
+
+  .space__axes {
+    position: absolute;
+    right: var(--gutter);
+    bottom: 0;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--color-muted);
+  }
+</style>

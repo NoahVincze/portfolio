@@ -8,6 +8,7 @@ import './reveal-images';
 import './progress';
 import './magnetic';
 import './filter';
+import './work-map';
 import './timeline';
 import './contact';
 import './physics-chips';

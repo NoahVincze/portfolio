@@ -1,6 +1,7 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import ProjectCard from '../../components/ProjectCard.astro';
+import WorkMap from '../../components/WorkMap.astro';
 import { getProjects } from '../../projects';
 
 const projects = await getProjects();
@@ -30,6 +31,7 @@ const tags = [...new Set(projects.flatMap((project) => project.data.tags))].sort
         }
       </div>
     </div>
+    <WorkMap />
     <ul class="work-grid" role="list" data-filter-grid>
       {
         projects.map((project, index) => (

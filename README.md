@@ -2,7 +2,7 @@
 
 Personal portfolio site, built with [Astro](https://astro.build), [GSAP](https://gsap.com), [Lenis](https://lenis.darkroom.engineering) and (from Phase 3) [Three.js](https://threejs.org).
 
-The animation plan lives in the Personal Website Animation Spec. Built so far: **Phase 1** (page structure, motion tokens, shared frame loop, motion switch), **Phase 2** (line and image reveals, page transitions with the thumbnail-to-cover morph, reading progress bar), **Phase 3** (the particle hero), **Phase 4** (custom cursor, magnetic links, first-visit intro, sideways work section, cover hover shader, work filter, self-drawing timeline, contact scramble and copy), **Phase 5** (physics skill chips, scroll-speed footer marquee) and **Phase 6** (an AI-themed visual identity: the diffusion cover shader, where covers are generated from Gaussian noise step by step, the cursor is a noise brush, and the home hero's particles land on the first cover as noise that denoises with the scroll; the first-visit training intro, where a loss curve trains over 12 epochs before the name crystallises; and token-streaming text reveals, where text is written token by token with the decoder's top candidates flickering beside the caret).
+The animation plan lives in the Personal Website Animation Spec. Built so far: **Phase 1** (page structure, motion tokens, shared frame loop, motion switch), **Phase 2** (line and image reveals, page transitions with the thumbnail-to-cover morph, reading progress bar), **Phase 3** (the particle hero), **Phase 4** (custom cursor, magnetic links, first-visit intro, sideways work section, cover hover shader, work filter, self-drawing timeline, contact scramble and copy), **Phase 5** (physics skill chips, scroll-speed footer marquee) and **Phase 6** (an AI-themed visual identity: the diffusion cover shader, where covers are generated from Gaussian noise step by step, the cursor is a noise brush, and the home hero's particles land on the first cover as noise that denoises with the scroll; the first-visit training intro, where a loss curve trains over 12 epochs before the name crystallises; and token-streaming text reveals, where text is written token by token with the decoder's top candidates flickering beside the caret). **Phase 7** turns the site's own content into an embedding space: a build-time pipeline embeds every project, passage, skill and experience entry; on the home page the particles gather into that space as a 3D point cloud between the hero and the first cover; and the Work page gets a semantic map that re-clusters with the filter.
 
 ## Getting started
 
@@ -14,6 +14,7 @@ npm run dev       # http://localhost:4321
 npm run check     # type-check .astro and .ts files
 npm run build     # static site in dist/
 npm run preview   # serve dist/ locally
+npm run embed     # re-embed the site's content after changing projects or src/profile.ts
 ```
 
 ## Deploying (Vercel)
@@ -39,6 +40,7 @@ npx playwright screenshot --viewport-size=1200,630 scripts/og-image.html public/
 | Path | What it is |
 | --- | --- |
 | `src/site.ts` | Name, tagline, email, social links, navigation |
+| `src/profile.ts` | Skills and experience (About page and embedding space) |
 | `src/content/projects/*.md` | One file per project. The file name becomes the URL (`/work/<file-name>/`). Fields are defined in `src/content.config.ts`. |
 | `public/covers/` | Cover images, referenced by `cover:` in each project file. The current ones are placeholders. |
 | `src/pages/` | Home, Work, project pages, About, Contact, 404 |
@@ -50,6 +52,9 @@ npx playwright screenshot --viewport-size=1200,630 scripts/og-image.html public/
 | `src/motion/page.ts` | Per-page lifecycle: builds effects on each page, cleans them up before the next |
 | `src/motion/effects/` | Per-page effects: reveals (token streaming in `stream.ts`), progress bar, magnetic links, sideways section, filter, timeline, contact, physics chips, footer marquee |
 | `src/motion/intro.ts` | First-visit intro (the animation itself is CSS, `.site-intro` in `global.css`; this ticks its numbers and handles skipping) |
+| `src/embedding/` | The embedding space: the corpus (`corpus.ts`), PCA and the hashed fallback (`space.ts`), and the build's entry point (`index.ts`) |
+| `src/data/embeddings.json` | Cached embedding vectors, written by `npm run embed`. Commit it. |
+| `scripts/embed.ts` | `npm run embed`: embeds the corpus with all-MiniLM-L6-v2 |
 | `src/motion/tokenizer.ts` | A tiny deterministic BPE-style tokenizer for the streaming reveal (`▁inter` + `active`) |
 | `src/motion/training.ts` | The intro's training run: the seeded loss curves, drawn at build time and read back in the browser |
 | `src/motion/cursor.ts` | Custom cursor |
@@ -104,7 +109,7 @@ Positions are measured from the live page (`layouts.ts`): the name is drawn with
 
 ## Phase 4 details
 
-**First-visit intro.** On a device's first visit (and never with reduced motion) a small model trains on a panel (a loss curve draws itself over 12 epochs while the epoch and loss numbers tick and the run reports "converged"), the name crystallises out of a blur, and the panel wipes away after 1.85 s, uncovering the hero name in the same place. Any click, key, scroll or touch skips it. It is CSS from the first paint, so it does not delay the page; the particle hero waits for it to end. To see it again, remove `intro-seen` from the site's local storage. To see it again, remove `intro-seen` from the site's local storage.
+**First-visit intro.** On a device's first visit (and never with reduced motion) a small model trains on a panel (a loss curve draws itself over 12 epochs while the epoch and loss numbers tick and the run reports "converged"), the name crystallises out of a blur, and the panel wipes away after 1.85 s, uncovering the hero name in the same place. Any click, key, scroll or touch skips it. It is CSS from the first paint, so it does not delay the page; the particle hero waits for it to end. To see it again, remove `intro-seen` from the site's local storage.
 
 **Hover effects and their touch and keyboard equivalents.** Every hover effect is decoration on top of a normal link or button:
 
@@ -117,6 +122,16 @@ Positions are measured from the live page (`layouts.ts`): the name is drawn with
 
 **Cover images.** Set `cover: /covers/your-image.jpg` in a project file and put the image in `public/covers/`. The cards, the page-transition morph, the hover effect and the particle hero all use it. `accent:` is the colour shown while it loads.
 
+## Embedding space
+
+Everything on the site is embedded with [all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2) (384 dimensions): each project (title, summary, tags and write-up), each paragraph of a write-up, each skill and each experience entry (`src/embedding/corpus.ts`). PCA projects the vectors to three dimensions, each axis scaled to the same extent for display.
+
+On the home page (`src/components/EmbeddingSpace.astro`) this is a labelled scatter plot without WebGL or with motion reduced. With the particle hero running, the particles leave the name and gather into the space as a 3D point cloud while its section scrolls up; the stage sticks in the middle of the window and the cloud turns as the visitor scrolls through, tilting toward the cursor. Labels are the real links and follow their points; hovering one lights up its cluster. Scrolling on, the particles burst onward and land on the first cover. The view lives in `src/motion/hero/space.ts`.
+
+**Work map.** Above the project grid, `src/components/WorkMap.astro` places the projects by PCA of their own embeddings, so neighbours are projects about similar things. Choosing a filter re-runs the projection in the browser on just the matching projects (`src/motion/effects/work-map.ts`), so the map re-clusters rather than only hiding points; labels glide to their new places and pick the side of their point with room. With the particle hero running, each project is a cluster of particles (they regroup straight into the map when arriving from the home page), and clicking a project pulls every particle into its point before the page opens. Without WebGL or with motion reduced, it is a plain labelled plot.
+
+**After changing projects or `src/profile.ts`, run `npm run embed` and commit `src/data/embeddings.json`.** The build only reads that cache: it never downloads the model, so Vercel and CI builds need no network or native code. If anything is missing from the cache, the build warns and the whole space falls back to a hashed bag-of-words embedding (it is all or nothing, since vectors from two different embeddings cannot share one projection). transformers.js is not a project dependency, so Vercel and CI never install it or its ONNX runtime: `npm run embed` installs it on the spot without saving it (a later `npm ci` removes it again). The model (about 90 MB) downloads once per machine into `~/.cache/portfolio-embed`.
+
 ## Placeholder content
 
-Copy marked `PLACEHOLDER` (in `src/site.ts`, the project files, and the About, Contact and Home pages) is sample text to replace, and the covers in `public/covers/` are placeholder images. The contact address is `hello@example.com` until you set your own in `src/site.ts`.
+Copy marked `PLACEHOLDER` (in `src/site.ts`, `src/profile.ts`, the project files, and the About, Contact and Home pages) is sample text to replace, and the covers in `public/covers/` are placeholder images. The contact address is `hello@example.com` until you set your own in `src/site.ts`.

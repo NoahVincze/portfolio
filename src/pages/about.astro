@@ -1,15 +1,6 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-
-/** PLACEHOLDER entries: newest first. */
-const timeline = [
-  { years: '2025 – now', title: 'Role, Company', text: 'One line on what you did there.' },
-  { years: '2022 – 2025', title: 'Role, Company', text: 'One line on what you did there.' },
-  { years: '2019 – 2022', title: 'Studies, School', text: 'One line on what you focused on.' },
-];
-
-/** PLACEHOLDER skills. */
-const skills = ['Interaction design', 'TypeScript', 'Astro', 'GSAP', 'Three.js', 'GLSL', 'Figma'];
+import { skills, timeline } from '../profile';
 ---
 
 <BaseLayout title="About" description="Background, experience and skills.">
