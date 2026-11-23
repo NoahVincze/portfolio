@@ -12,13 +12,10 @@
  * detail resolves as t falls. The level also varies a little across the image, so some
  * regions settle before others.
  *
- * Three things drive the noise level of a cover, and the strongest wins:
- *   Reveal  `reveal()` (via src/motion/diffusion.ts, called by the image reveal effect):
- *           noise wipes in, then is denoised over 50 visible steps.
- *   Hover   the cursor (or keyboard focus) is a brush that adds noise back around it,
- *           leaving a trail that denoises again behind it.
- *   Scrub   home only: as the hero particles land on the first cover, it is denoised in
- *           step with the scroll, so particles turn into noise and noise into the image.
+ * It is used for one thing: a project page's large cover, when the visitor arrives
+ * without the card-to-cover morph (`reveal()`, called via src/motion/diffusion.ts by the
+ * image reveal effect). Noise fades in, then is denoised over 50 visible steps. Cards do
+ * not use it: drawing every card through this shader cost too much while scrolling.
  *
  * While a cover is drawn here its HTML image steps aside (`.is-diffusing`), so the canvas
  * (behind the page) shows through in exactly the same place. A small label in the frame
@@ -34,7 +31,6 @@ import {
   Mesh,
   ShaderMaterial,
   Vector2,
-  Vector3,
   Vector4,
 } from 'three';
 import type { DiffusionRenderer } from '../diffusion';
@@ -43,19 +39,10 @@ import { gsapEase, seconds } from '../tokens';
 
 /** Sampling steps shown during a reveal. */
 export const STEPS = 50;
-/** Points in the hover brush's trail (the head is the current cursor position). */
-const TRAIL = 12;
-/** Peak noise level the hover brush adds. */
-const HOVER_NOISE = 0.62;
-/** Brush radius, as a fraction of the cover's height. */
-const HOVER_RADIUS = 0.2;
-/** How long the trail takes to settle back, in seconds (time constant). */
-const TRAIL_DECAY = 0.32;
-/** New noise is drawn this many times a second, so waiting and hovered noise "boils". */
+/** New noise is drawn this many times a second, so noise waiting for the image "boils". */
 const BOIL_RATE = 15;
 
 const ACTIVE_CLASS = 'is-diffusing';
-const FRAME_SELECTOR = '[data-reveal="image"], [data-parallax]';
 
 const vertexShader = /* glsl */ `
   uniform vec4 uRect;
@@ -70,7 +57,6 @@ const vertexShader = /* glsl */ `
 `;
 
 const fragmentShader = /* glsl */ `
-  #define TRAIL ${TRAIL}
   uniform sampler2D uTexture;
   uniform vec2 uSize;
   uniform float uRadius;
@@ -79,13 +65,9 @@ const fragmentShader = /* glsl */ `
   uniform float uWipe;
   uniform float uAlpha;
   uniform float uSeed;
-  uniform vec3 uTrail[TRAIL];
   varying vec2 vUv;
 
   const float HALF_PI = 1.5707963;
-  const float HOVER_NOISE = ${HOVER_NOISE.toFixed(3)};
-  const float HOVER_RADIUS = ${HOVER_RADIUS.toFixed(3)};
-
   float roundedBox(vec2 p, vec2 b, float r) {
     vec2 q = abs(p) - b + r;
     return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
@@ -143,18 +125,9 @@ const fragmentShader = /* glsl */ `
     float mask = 1.0 - smoothstep(-0.5, 0.5, roundedBox(px - uSize * 0.5, uSize * 0.5, uRadius));
     mask *= smoothstep(-1.0, 1.0, px.y - (1.0 - uWipe) * uSize.y);
 
-    // Noise level here: the schedule's level, uneven across the image mid-way...
+    // Noise level here: the schedule's level, uneven across the image mid-way.
     float field = valueNoise(px / 110.0) - 0.5;
     float t = clamp(uT + field * 0.45 * sin(3.1415927 * uT), 0.0, 1.0);
-
-    // ...raised by the hover brush and the trail it leaves.
-    vec2 aspect = vec2(uSize.x / uSize.y, 1.0);
-    float brush = 0.0;
-    for (int i = 0; i < TRAIL; i++) {
-      vec2 d = (vUv - uTrail[i].xy) * aspect / HOVER_RADIUS;
-      brush = max(brush, uTrail[i].z * exp(-dot(d, d)));
-    }
-    t = max(t, brush * HOVER_NOISE * (0.85 + 0.3 * field));
 
     // Coarse to fine: at high noise the image is only known in patches of 2^level pixels.
     float level = floor(pow(t, 0.8) * 5.0 + 0.5);
@@ -180,12 +153,6 @@ const fragmentShader = /* glsl */ `
   }
 `;
 
-interface TrailPoint {
-  x: number;
-  y: number;
-  w: number;
-}
-
 interface Reveal {
   /** Continuous noise level, 1 = pure noise. Shown quantised to STEPS. */
   t: number;
@@ -205,21 +172,9 @@ interface Entry {
   material: ShaderMaterial;
   ready: boolean;
   reveal: Reveal | null;
-  scrub: number;
-  hover: {
-    strength: number;
-    target: number;
-    x: number;
-    y: number;
-    targetX: number;
-    targetY: number;
-    trail: TrailPoint[];
-    lastPush: number;
-  };
   label: HTMLElement | null;
   labelStep: number;
   classApplied: boolean;
-  lastTime: number;
   removeLoadListener: (() => void) | null;
 }
 
@@ -227,11 +182,6 @@ export interface CoverEffects extends DiffusionRenderer {
   group: Group;
   /** Per frame. Returns true while any cover is drawn. */
   update(time: number): boolean;
-  /**
-   * Home hero: noise level (0 to 1) for the cover the particles land on. Call every frame;
-   * pass null when there is no such cover.
-   */
-  scrub(frame: HTMLElement | null, level: number): void;
   /** After shader compilation: hides the mesh that was only there to be compiled. */
   warmed(): void;
   start(): void;
@@ -257,7 +207,6 @@ export function createCoverEffects(viewport: Vector2, maxPixelRatio: number): Co
         uWipe: { value: 1 },
         uAlpha: { value: 1 },
         uSeed: { value: 0 },
-        uTrail: { value: Array.from({ length: TRAIL }, () => new Vector3()) },
       },
       vertexShader,
       fragmentShader,
@@ -280,7 +229,6 @@ export function createCoverEffects(viewport: Vector2, maxPixelRatio: number): Co
   const entries = new Map<HTMLElement, Entry>();
   const textures = new Map<HTMLImageElement, CanvasTexture>();
   let running = false;
-  let scrubFrame: HTMLElement | null = null;
 
   /** The cover image drawn at the frame's size (object-fit: cover), as a texture. */
   function textureFor(image: HTMLImageElement, width: number, height: number): CanvasTexture {
@@ -344,12 +292,9 @@ export function createCoverEffects(viewport: Vector2, maxPixelRatio: number): Co
       material,
       ready: false,
       reveal: null,
-      scrub: 0,
-      hover: { strength: 0, target: 0, x: 0.5, y: 0.5, targetX: 0.5, targetY: 0.5, trail: [], lastPush: 0 },
       label: null,
       labelStep: -1,
       classApplied: false,
-      lastTime: gsap.ticker.time,
       removeLoadListener: null,
     };
 
@@ -396,7 +341,6 @@ export function createCoverEffects(viewport: Vector2, maxPixelRatio: number): Co
 
   function releaseAll(): void {
     for (const entry of [...entries.values()]) remove(entry);
-    scrubFrame = null;
   }
 
   // ---- Step counter label
@@ -446,66 +390,6 @@ export function createCoverEffects(viewport: Vector2, maxPixelRatio: number): Co
     return true;
   }
 
-  // ---- Hover (mouse and keyboard focus)
-
-  function hoverTarget(el: Element | null): Entry | null {
-    if (!running) return null;
-    const link = el?.closest<HTMLElement>('[data-hover-shader]');
-    const frame = link?.querySelector<HTMLElement>(FRAME_SELECTOR);
-    const image = frame && parts(frame)?.image;
-    // Only covers that are already showing their image (no hover on a loading cover).
-    if (!frame || !image || !imageReady(image)) return null;
-    return entryFor(frame);
-  }
-
-  const localPoint = (frame: HTMLElement, clientX: number, clientY: number) => {
-    const rect = frame.getBoundingClientRect();
-    return [(clientX - rect.left) / rect.width, (clientY - rect.top) / rect.height] as const;
-  };
-
-  function hoverStart(entry: Entry, x: number, y: number): void {
-    const { hover } = entry;
-    if (hover.target === 0 && hover.strength < 0.01) {
-      hover.x = x;
-      hover.y = y;
-    }
-    hover.targetX = x;
-    hover.targetY = y;
-    hover.target = 1;
-  }
-
-  const hovered = () => [...entries.values()].filter((entry) => entry.hover.target > 0);
-
-  document.addEventListener('pointerover', (event) => {
-    if (event.pointerType !== 'mouse') return;
-    const entry = hoverTarget(event.target as Element);
-    if (entry) hoverStart(entry, ...localPoint(entry.frame, event.clientX, event.clientY));
-  });
-  addEventListener(
-    'pointermove',
-    (event) => {
-      if (event.pointerType !== 'mouse') return;
-      for (const entry of hovered()) {
-        [entry.hover.targetX, entry.hover.targetY] = localPoint(entry.frame, event.clientX, event.clientY);
-      }
-    },
-    { passive: true },
-  );
-  const hoverEnd = (event: FocusEvent | PointerEvent) => {
-    for (const entry of hovered()) {
-      const link = entry.frame.closest('[data-hover-shader]');
-      if (!link?.contains(event.relatedTarget as Node | null)) entry.hover.target = 0;
-    }
-  };
-  document.addEventListener('pointerout', hoverEnd);
-  document.addEventListener('focusin', (event) => {
-    const el = event.target as Element;
-    if (!el.matches(':focus-visible')) return;
-    const entry = hoverTarget(el);
-    if (entry) hoverStart(entry, 0.5, 0.5);
-  });
-  document.addEventListener('focusout', hoverEnd);
-
   // The page is about to be captured for the transition: show the real images.
   document.addEventListener('astro:before-preparation', releaseAll);
   // Textures of covers that are no longer on the page.
@@ -517,33 +401,6 @@ export function createCoverEffects(viewport: Vector2, maxPixelRatio: number): Co
       }
     }
   });
-
-  function updateHover(entry: Entry, time: number, dt: number): boolean {
-    const { hover } = entry;
-    hover.strength += (hover.target - hover.strength) * Math.min(1, dt * 7);
-    hover.x += (hover.targetX - hover.x) * Math.min(1, dt * 9);
-    hover.y += (hover.targetY - hover.y) * Math.min(1, dt * 9);
-
-    const decay = Math.exp(-dt / TRAIL_DECAY);
-    for (const point of hover.trail) point.w *= decay;
-    const last = hover.trail[hover.trail.length - 1];
-    const moved = !last || Math.hypot(hover.x - last.x, hover.y - last.y) > 0.03;
-    if (hover.strength > 0.01 && moved && time - hover.lastPush > 0.03) {
-      hover.trail.push({ x: hover.x, y: hover.y, w: hover.strength });
-      hover.lastPush = time;
-      if (hover.trail.length > TRAIL - 1) hover.trail.shift();
-    }
-    while (hover.trail.length && hover.trail[0]!.w < 0.005) hover.trail.shift();
-
-    const uniforms = entry.material.uniforms.uTrail!.value as Vector3[];
-    uniforms[0]!.set(hover.x, hover.y, hover.strength);
-    for (let i = 1; i < TRAIL; i++) {
-      const point = hover.trail[hover.trail.length - i];
-      if (point) uniforms[i]!.set(point.x, point.y, point.w);
-      else uniforms[i]!.set(0, 0, 0);
-    }
-    return hover.target > 0 || hover.strength > 0.005 || hover.trail.length > 0;
-  }
 
   /** Noise level of a reveal, quantised to whole sampling steps. Null once it is finished. */
   function updateReveal(entry: Entry, time: number): number | null {
@@ -567,19 +424,12 @@ export function createCoverEffects(viewport: Vector2, maxPixelRatio: number): Co
         remove(entry);
         continue;
       }
-      const dt = Math.min(0.1, Math.max(0, time - entry.lastTime));
-      entry.lastTime = time;
-
-      const revealLevel = updateReveal(entry, time);
-      const hovering = updateHover(entry, time, dt);
-      const scrubLevel = entry.frame === scrubFrame ? entry.scrub : 0;
-      if (revealLevel === null && !hovering && scrubLevel <= 0) {
+      const level = updateReveal(entry, time);
+      if (level === null) {
         remove(entry);
         continue;
       }
 
-      const scrubStepped = Math.ceil(scrubLevel * STEPS) / STEPS;
-      const level = Math.max(revealLevel ?? 0, scrubStepped);
       const uniforms = entry.material.uniforms;
       const rect = entry.frame.getBoundingClientRect();
       uniforms.uRect!.value.set(rect.left, rect.top, rect.width, rect.height);
@@ -588,11 +438,11 @@ export function createCoverEffects(viewport: Vector2, maxPixelRatio: number): Co
       uniforms.uT!.value = level;
       uniforms.uWipe!.value = entry.reveal?.wipe ?? 1;
       uniforms.uAlpha!.value = entry.reveal?.alpha ?? 1;
-      // New noise at every sampling step, and continuously while it waits or is hovered.
+      // New noise at every sampling step, and continuously while it waits for the image.
       uniforms.uSeed!.value = (Math.round(level * STEPS) * 7 + Math.floor(time * BOIL_RATE)) % 997;
 
-      // The step counter: reveals and the hero scrub only, not hover.
-      if (level > 0 && (revealLevel !== null || scrubLevel > 0)) showLabel(entry, Math.round((1 - level) * STEPS));
+      // The step counter.
+      if (level > 0) showLabel(entry, Math.round((1 - level) * STEPS));
       else hideLabel(entry);
 
       entry.mesh.visible = true;
@@ -603,31 +453,9 @@ export function createCoverEffects(viewport: Vector2, maxPixelRatio: number): Co
     return drawing;
   }
 
-  function scrub(frame: HTMLElement | null, level: number): void {
-    if (scrubFrame && scrubFrame !== frame) {
-      const previous = entries.get(scrubFrame);
-      if (previous) previous.scrub = 0;
-    }
-    scrubFrame = frame;
-    if (!frame || !running) return;
-    const existing = entries.get(frame);
-    if (level <= 0) {
-      if (existing) existing.scrub = 0;
-      return;
-    }
-    // Only once the cover is coming into view, at the same point its reveal would start.
-    if (!existing) {
-      const rect = frame.getBoundingClientRect();
-      if (rect.top > innerHeight * 0.9 || rect.bottom < 0 || rect.left > innerWidth || rect.right < 0) return;
-    }
-    const entry = existing ?? entryFor(frame);
-    if (entry) entry.scrub = level;
-  }
-
   return {
     group,
     update,
-    scrub,
     reveal,
     warmed() {
       group.remove(warmMesh);

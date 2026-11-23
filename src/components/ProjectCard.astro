@@ -15,7 +15,7 @@ const url = projectUrl(project);
 ---
 
 <article class="card">
-  <a class="card__link" href={url} data-cursor="view" data-hover-shader>
+  <a class="card__link" href={url} data-cursor="view">
     {/* Shares its transition name with the project page cover, so one morphs into the other. */}
     <div
       class="card__cover"
@@ -87,5 +87,14 @@ const url = projectUrl(project);
 
   .card__link:hover .card__title {
     color: var(--color-accent);
+  }
+
+  /* Hover: the cover leans in a little. A plain transform on the image, cheap to animate. */
+  .card__cover :global(img) {
+    transition: transform var(--dur-slow) var(--ease-out);
+  }
+
+  :global(html[data-motion='full']) .card__link:is(:hover, :focus-visible) .card__cover :global(img) {
+    transform: scale(1.04);
   }
 </style>

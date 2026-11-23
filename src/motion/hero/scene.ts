@@ -9,8 +9,8 @@
  * Other pages: they settle into a faint field behind the content.
  * Navigation: the canvas persists across pages and the particles regroup into the new
  * page's layout instead of reloading.
- * Project covers: diffusion reveals, a noise brush on hover and, on home, the cover the
- * particles land on denoising in step with the scroll (./covers.ts), on the same canvas.
+ * Project pages: the large cover can arrive like a diffusion sample (./covers.ts), on the
+ * same canvas.
  *
  * This module pulls in Three.js, so it is only ever loaded with a dynamic import
  * (see ./index.ts), after the page has painted and the browser is idle.
@@ -53,19 +53,12 @@ const smoothstep = (e0: number, e1: number, x: number) => {
 /** GLSL's mod (always positive for a positive divisor), unlike JavaScript's %. */
 const mod = (x: number, y: number) => x - y * Math.floor(x / y);
 const ZERO = new Vector3();
-const NO_FIELD = { from: 1, rect: [0, 0, 1, 1] as [number, number, number, number] };
-/**
- * Home: the part of the scroll morph (0 to 1) over which the first cover denoises. The
- * particles start fading onto it at 0.8 (see the shaders), so the noise is fully formed
- * underneath them by then and the image is clean when the morph ends.
- */
-const LANDING_FROM = 0.74;
 /** Embedding space particles: opacity and point size (CSS px, before perspective). */
 const SPACE_ALPHA = 0.9;
 const SPACE_SIZE = 2.1;
 /** Landscape: the share of its scroll by which the ball reaches the minimum. */
 const ARRIVE_AT = 0.8;
-const LANDING_TO = 0.98;
+const NO_FIELD = { from: 1, rect: [0, 0, 1, 1] as [number, number, number, number] };
 
 export function createHeroScene(canvas: HTMLCanvasElement): HeroScene | null {
   const phone = matchMedia('(max-width: 767px)').matches || (navigator.hardwareConcurrency ?? 8) <= 4;
@@ -485,9 +478,6 @@ export function createHeroScene(canvas: HTMLCanvasElement): HeroScene | null {
     uniforms.uEScale.value = space.scale;
     uniforms.uHighlight.value = space.highlight;
 
-    // Home: the particles land on the first cover as noise, which then denoises with the scroll.
-    const landing = layouts?.fadeOnArrival ? layouts.morphEnd : null;
-    covers.scrub(landing, landing ? 1 - smoothstep(LANDING_FROM, LANDING_TO, state.morph) : 0);
     const coversDrawn = covers.update(time);
 
     // Nothing to show (home, scrolled past the hero, particles faded, no cover drawn):

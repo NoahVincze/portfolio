@@ -13,8 +13,8 @@ export interface DiffusionRenderer {
    * then denoised step by step into the image. Returns false if the frame cannot be drawn
    * (no <img> inside), in which case the caller should reveal it another way.
    *
-   * `wipe`: the noise wipes up from the bottom first (cards). Without it, the noise fades
-   * in where it is (a project page's large cover).
+   * `wipe`: the noise wipes up from the bottom first. Without it, the noise fades in where
+   * it is (how a project page's large cover uses it).
    */
   reveal(frame: HTMLElement, options?: { wipe?: boolean }): boolean;
 }
