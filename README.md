@@ -146,6 +146,6 @@ Without WebGL or with motion reduced it is a top-down plot: the surface as a dot
 
 `/lab/` holds small machine learning experiments that run in the browser. The first, `src/components/MlpPlayground.astro`, trains a 2–10–10–1 multilayer perceptron (`src/lab/mlp.ts`: tanh, sigmoid output, cross-entropy, full-batch Adam, written from scratch) on a toy dataset (`src/lab/datasets.ts`: moons, circles, spiral, XOR). `src/motion/effects/playground.ts` trains a few epochs per frame while the experiment is on screen and draws the prediction field, the decision boundary (marching squares at p = 0.5), the points, the loss curve and the network with each connection drawn by its weight. Visitors can switch datasets, add points (click; shift-click for the other class), pause and reset. With motion reduced it starts paused.
 
-## Placeholder content
+## Content
 
-The projects in `src/content/projects/` and their covers in `public/covers/` are real. Copy marked `PLACEHOLDER` (in `src/site.ts`, `src/profile.ts`, and the About, Contact and Home pages) is still sample text to replace. The contact address is `hello@example.com` until you set your own in `src/site.ts`.
+All copy is real: projects in `src/content/projects/` (covers in `public/covers/`), name, tagline, contact address and links in `src/site.ts`, experience and skills in `src/profile.ts`, and the About, Contact and Home page text. After changing projects or `src/profile.ts`, run `npm run embed`.
