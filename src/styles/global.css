@@ -374,6 +374,21 @@ html[data-intro='play'] .site-intro {
 
 /* ---------- Custom cursor ---------- */
 
+/*
+ * While the custom cursor is showing (src/motion/cursor.ts: mouse or trackpad, motion on,
+ * pointer in the window) it replaces the system cursor. The rule depends on the cursor's
+ * own `is-visible` class, so if the script fails or motion is off nothing is hidden.
+ * Text fields keep the system text cursor.
+ */
+:root:has(> body > .cursor.is-visible),
+:root:has(> body > .cursor.is-visible) * {
+  cursor: none !important;
+}
+
+:root:has(> body > .cursor.is-visible) :is(input, textarea, select, [contenteditable='true']) {
+  cursor: auto !important;
+}
+
 .cursor {
   position: fixed;
   top: 0;
@@ -390,6 +405,11 @@ html[data-intro='play'] .site-intro {
 
 html[data-motion='reduced'] .cursor {
   display: none;
+}
+
+/* Over text fields the system text cursor takes over. */
+.cursor.is-visible[data-cursor-state='text'] {
+  opacity: 0;
 }
 
 .cursor__circle {

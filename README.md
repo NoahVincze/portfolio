@@ -87,7 +87,7 @@ Positions are measured from the live page (`layouts.ts`): the name is drawn with
 
 | Hover effect | Keyboard | Touch |
 | --- | --- | --- |
-| Custom cursor and "View" label | Normal focus outline | Not shown; links work as usual |
+| Custom cursor and "View" label (replaces the system cursor while showing) | Normal focus outline | Not shown; the system cursor is used |
 | Magnetic links | Normal focus outline | Not shown |
 | Cover ripple and RGB split | Triggered by keyboard focus on the card | Not shown; tapping opens the project |
 | Email scramble | Triggered by keyboard focus | The Copy button works by tap |
