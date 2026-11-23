@@ -3,10 +3,10 @@
  */
 export const site = {
   name: 'Noah Vincze',
-  /** PLACEHOLDER: one line under the name on the home page. */
-  tagline: 'I design and build interactive things for the web.',
-  /** PLACEHOLDER: used as the default meta description. */
-  description: 'Portfolio of Noah Vincze: selected work, background and contact.',
+  /** One line under the name on the home page (also in link previews and scripts/og-image.html). */
+  tagline: 'Data scientist building AI agents, ML systems and the evals that keep them honest.',
+  /** The default meta description. */
+  description: 'Noah Vincze is a data scientist working on AI agents, LLMs and machine learning. Selected work, background and contact.',
   /** PLACEHOLDER: replace with the address you want visitors to use. */
   email: 'hello@example.com',
   socials: [
