@@ -22,6 +22,8 @@ export interface ViewPreset {
   scale: number;
   /** Extra scale on portrait stages (phones), for scenes wider than they are tall once turned. */
   portrait: number;
+  /** On wide stages, how far right of centre the scene sits (share of the width), to clear text on the left. */
+  shift: number;
   /** Turning speed: radians per second on its own, per pixel scrolled, and toward the cursor. */
   spin: { time: number; scroll: number; pointer: number };
   /** Tilt toward the viewer (radians), and how far the cursor adds to it. */
@@ -29,8 +31,8 @@ export interface ViewPreset {
 }
 
 export const VIEW = {
-  space: { scale: 0.47, portrait: 1, spin: { time: 0.09, scroll: 0.0011, pointer: 0.7 }, tilt: { base: 0.32, pointer: 0.45 } },
-  landscape: { scale: 0.62, portrait: 0.62, spin: { time: 0.04, scroll: 0.0005, pointer: 0.45 }, tilt: { base: 0.62, pointer: 0.25 } },
+  space: { scale: 0.5, portrait: 1, shift: 0.1, spin: { time: 0.09, scroll: 0.0011, pointer: 0.7 }, tilt: { base: 0.32, pointer: 0.45 } },
+  landscape: { scale: 0.62, portrait: 0.62, shift: 0, spin: { time: 0.04, scroll: 0.0005, pointer: 0.45 }, tilt: { base: 0.62, pointer: 0.25 } },
 } satisfies Record<string, ViewPreset>;
 /** Labels within this many pixels of a more important one are faded back. */
 const LABEL_GAP = 3;
@@ -177,7 +179,7 @@ export function createSpaceView(): SpaceView {
     update(time, pointer, arrived, leaving) {
       if (!layout) return;
       // Turn: on its own, with the scroll, and toward the cursor.
-      const { spin, tilt: lean, scale, portrait } = layout.view;
+      const { spin, tilt: lean, scale, portrait, shift } = layout.view;
       const yaw = time * spin.time + scrollY * spin.scroll + pointer.x * spin.pointer;
       const tilt = lean.base + pointer.y * lean.pointer;
       const [c, s, cb, sb] = [Math.cos(yaw), Math.sin(yaw), Math.cos(tilt), Math.sin(tilt)];
@@ -186,7 +188,8 @@ export function createSpaceView(): SpaceView {
       rotation.set(r[0]!, r[1]!, r[2]!, r[3]!, r[4]!, r[5]!, r[6]!, r[7]!, r[8]!);
 
       const box = layout.area.getBoundingClientRect();
-      center.set(box.left + box.width / 2, box.top + box.height / 2);
+      const wide = box.width > box.height * 1.2;
+      center.set(box.left + box.width * (0.5 + (wide ? shift : 0)), box.top + box.height / 2);
       // Portrait stages (phones) are narrower than the scene is wide once it turns: shrink it.
       view.scale = Math.min(box.width, box.height) * scale * (box.width < box.height ? portrait : 1);
 
