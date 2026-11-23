@@ -9,7 +9,7 @@
     "preview": "astro preview",
     "check": "astro check",
     "astro": "astro",
-    "embed": "node scripts/embed.ts"
+    "embed": "npm install --no-save --no-audit --no-fund @huggingface/transformers@4.3.2 && node scripts/embed.ts"
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.7.6",
@@ -21,7 +21,6 @@
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.12",
-    "@huggingface/transformers": "^4.3.2",
     "@types/matter-js": "^0.20.2",
     "@types/three": "^0.187.0",
     "typescript": "^6.0.3"

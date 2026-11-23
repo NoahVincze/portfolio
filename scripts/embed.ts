@@ -4,12 +4,16 @@
  * build reads. Run it after adding or changing projects or src/profile.ts, and commit
  * the JSON. The build itself never downloads the model (see src/embedding/space.ts).
  *
- * Node runs this TypeScript file directly (type stripping, Node 22.18+). The first run
- * downloads the model (about 23 MB) into node_modules; later runs reuse it.
+ * Node runs this TypeScript file directly (type stripping, Node 22.18+).
+ *
+ * transformers.js is deliberately not a project dependency, so Vercel and CI never install
+ * it (or its ONNX runtime): the npm script installs it on the spot with --no-save, and a
+ * later `npm ci` removes it again. The model (about 90 MB) is cached in
+ * ~/.cache/portfolio-embed, outside node_modules, so it downloads only once per machine.
  */
 import { readdir, readFile, writeFile } from 'node:fs/promises';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { pipeline } from '@huggingface/transformers';
 import { buildCorpus, textKey, type CorpusProject } from '../src/embedding/corpus.ts';
 import { buildSpace, DIMENSIONS, MODEL, type EmbeddingCache } from '../src/embedding/space.ts';
 import { skills, timeline } from '../src/profile.ts';
@@ -42,9 +46,29 @@ const items = buildCorpus(projects, { skills, timeline });
 const texts = [...new Set(items.map((item) => item.text))];
 console.log(`Embedding ${texts.length} texts (${items.length} items) with ${MODEL}...`);
 
-const extract = await pipeline('feature-extraction', MODEL, { dtype: 'fp32' });
+/** The slice of transformers.js used here (it is not installed for type-checking). */
+interface Transformers {
+  env: { cacheDir: string };
+  pipeline(
+    task: 'feature-extraction',
+    model: string,
+    options: { dtype: 'fp32' },
+  ): Promise<(texts: string[], options: { pooling: 'mean'; normalize: boolean }) => Promise<{ tolist(): number[][] }>>;
+}
+
+const TRANSFORMERS = '@huggingface/transformers';
+let transformers: Transformers;
+try {
+  transformers = (await import(TRANSFORMERS)) as Transformers;
+} catch {
+  console.error(`${TRANSFORMERS} is not installed. Run this through \`npm run embed\`, which installs it first.`);
+  process.exit(1);
+}
+transformers.env.cacheDir = join(homedir(), '.cache', 'portfolio-embed');
+
+const extract = await transformers.pipeline('feature-extraction', MODEL, { dtype: 'fp32' });
 const output = await extract(texts, { pooling: 'mean', normalize: true });
-const rows = output.tolist() as number[][];
+const rows = output.tolist();
 
 const vectors: Record<string, number[]> = {};
 texts.forEach((text, i) => {
