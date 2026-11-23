@@ -18,6 +18,8 @@ import { SPACE_CAMERA } from './shaders';
 export interface ViewPreset {
   /** The scene's radius as a share of the stage area's smaller side. */
   scale: number;
+  /** Extra scale on portrait stages (phones), for scenes wider than they are tall once turned. */
+  portrait: number;
   /** Turning speed: radians per second on its own, per pixel scrolled, and toward the cursor. */
   spin: { time: number; scroll: number; pointer: number };
   /** Tilt toward the viewer (radians), and how far the cursor adds to it. */
@@ -25,8 +27,8 @@ export interface ViewPreset {
 }
 
 export const VIEW = {
-  space: { scale: 0.47, spin: { time: 0.09, scroll: 0.0011, pointer: 0.7 }, tilt: { base: 0.32, pointer: 0.45 } },
-  landscape: { scale: 0.62, spin: { time: 0.04, scroll: 0.0005, pointer: 0.45 }, tilt: { base: 0.62, pointer: 0.25 } },
+  space: { scale: 0.47, portrait: 1, spin: { time: 0.09, scroll: 0.0011, pointer: 0.7 }, tilt: { base: 0.32, pointer: 0.45 } },
+  landscape: { scale: 0.62, portrait: 0.62, spin: { time: 0.04, scroll: 0.0005, pointer: 0.45 }, tilt: { base: 0.62, pointer: 0.25 } },
 } satisfies Record<string, ViewPreset>;
 /** Labels within this many pixels of a more important one are faded back. */
 const LABEL_GAP = 3;
@@ -142,7 +144,7 @@ export function createSpaceView(): SpaceView {
     update(time, pointer, arrived, leaving) {
       if (!layout) return;
       // Turn: on its own, with the scroll, and toward the cursor.
-      const { spin, tilt: lean, scale } = layout.view;
+      const { spin, tilt: lean, scale, portrait } = layout.view;
       const yaw = time * spin.time + scrollY * spin.scroll + pointer.x * spin.pointer;
       const tilt = lean.base + pointer.y * lean.pointer;
       const [c, s, cb, sb] = [Math.cos(yaw), Math.sin(yaw), Math.cos(tilt), Math.sin(tilt)];
@@ -153,7 +155,7 @@ export function createSpaceView(): SpaceView {
       const box = layout.area.getBoundingClientRect();
       center.set(box.left + box.width / 2, box.top + box.height / 2);
       // Portrait stages (phones) are narrower than the scene is wide once it turns: shrink it.
-      view.scale = Math.min(box.width, box.height) * scale * (box.width < box.height ? 0.62 : 1);
+      view.scale = Math.min(box.width, box.height) * scale * (box.width < box.height ? portrait : 1);
 
       placeLabels(box, smoothstep(0.75, 1, arrived) * (1 - smoothstep(0, 0.2, leaving)));
     },
