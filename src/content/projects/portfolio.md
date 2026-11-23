@@ -6,7 +6,6 @@ role: Design and development
 tags: [Web, WebGL, ML]
 featured: false
 order: 2
-accent: '#c4a693'
 cover: /covers/portfolio.svg
 repo: https://github.com/NoahVincze/portfolio
 ---

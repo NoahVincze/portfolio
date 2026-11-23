@@ -122,7 +122,7 @@ Positions are measured from the live page (`layouts.ts`): the name is drawn with
 | Cover ripple and RGB split | Triggered by keyboard focus on the card | Not shown; tapping opens the project |
 | Email scramble | Triggered by keyboard focus | The Copy button works by tap |
 
-**Cover images.** Set `cover: /covers/your-image.jpg` in a project file and put the image in `public/covers/`. The cards, the page-transition morph, the hover effect and the particle hero all use it. `accent:` is the colour shown while it loads.
+**Cover images.** Set `cover: /covers/your-image.jpg` in a project file and put the image in `public/covers/`. The cards, the page-transition morph and the particle hero all use it. The current covers are figures generated in the site's palette (paper, ink and the accent; they switch with light and dark mode through `prefers-color-scheme` inside the SVG), with a mono figure caption and a one-line metric and no title, since the card shows it.
 
 ## Embedding space
 
