@@ -1,5 +1,6 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import EmbeddingSpace from '../components/EmbeddingSpace.astro';
 import ProjectCard from '../components/ProjectCard.astro';
 import { getFeaturedProjects } from '../projects';
 import { site } from '../site';
@@ -13,6 +14,8 @@ const featured = await getFeaturedProjects();
     <h1 id="hero-name" class="hero__name" data-reveal="lines">{site.name}</h1>
     <p class="hero__tagline" data-reveal="lines" data-reveal-delay="200">{site.tagline}</p>
   </section>
+
+  <EmbeddingSpace />
 
   {/* On wide screens with motion on, this section pins and the cards slide sideways (src/motion/effects/horizontal.ts). */}
   <section class="section work" aria-labelledby="selected-work" data-horizontal>

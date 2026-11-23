@@ -4,6 +4,8 @@
  * Home: most particles spell the name over the real (now invisible) heading and drift
  * toward the cursor; the rest form a living field across the whole hero that drifts like
  * dust and parts around the cursor. Scrolling bursts everything into the first project cover.
+ * On the way, they gather into the embedding space (./space.ts): a 3D point cloud of
+ * everything on the site, which turns while its section is scrolled through.
  * Other pages: they settle into a faint field behind the content.
  * Navigation: the canvas persists across pages and the particles regroup into the new
  * page's layout instead of reloading.
@@ -30,8 +32,9 @@ import { onFrame } from '../loop';
 import { gsapEase, seconds } from '../tokens';
 import { provideDiffusion } from '../diffusion';
 import { createCoverEffects } from './covers';
-import { readPageLayouts, scatteredPositions, type Layout, type PageLayouts, type RGB } from './layouts';
-import { FIELD_ALPHA, FIELD_SIZE, fragmentShader, vertexShader } from './shaders';
+import { createSpaceView } from './space';
+import { cssColor, readPageLayouts, scatteredPositions, type Layout, type PageLayouts, type RGB } from './layouts';
+import { FIELD_ALPHA, FIELD_SIZE, fragmentShader, SPACE_BACK_ALPHA, SPACE_HALO_ALPHA, vertexShader } from './shaders';
 
 export interface HeroScene {
   /** Compiles the shaders without blocking the page (call once before the first start). */
@@ -55,6 +58,9 @@ const NO_FIELD = { from: 1, rect: [0, 0, 1, 1] as [number, number, number, numbe
  * underneath them by then and the image is clean when the morph ends.
  */
 const LANDING_FROM = 0.74;
+/** Embedding space particles: opacity and point size (CSS px, before perspective). */
+const SPACE_ALPHA = 0.9;
+const SPACE_SIZE = 2.1;
 const LANDING_TO = 0.98;
 
 export function createHeroScene(canvas: HTMLCanvasElement): HeroScene | null {
@@ -87,6 +93,11 @@ export function createHeroScene(canvas: HTMLCanvasElement): HeroScene | null {
   geometry.setAttribute('aPrevStyle', aPrevStyle);
   geometry.setAttribute('aSeed', new BufferAttribute(seeds, 3));
   geometry.setAttribute('aRank', new BufferAttribute(ranks, 1));
+  const aE = attribute(3);
+  const aEInfo = attribute(2);
+  geometry.setAttribute('aE', aE);
+  geometry.setAttribute('aEInfo', aEInfo);
+  const space = createSpaceView();
 
   const uniforms = {
     uViewport: { value: new Vector2(innerWidth, innerHeight) },
@@ -112,6 +123,15 @@ export function createHeroScene(canvas: HTMLCanvasElement): HeroScene | null {
     uSizeB: { value: 2 },
     uDensityA: { value: 1 },
     uDensityB: { value: 1 },
+    uSpace: { value: 0 },
+    uECenter: { value: space.center },
+    uEScale: { value: 1 },
+    uERot: { value: space.rotation },
+    uColorE: { value: new Vector3() },
+    uAccent: { value: new Vector3() },
+    uAlphaE: { value: SPACE_ALPHA },
+    uSizeE: { value: SPACE_SIZE },
+    uHighlight: { value: -1 },
   };
 
   const material = new ShaderMaterial({
@@ -131,11 +151,13 @@ export function createHeroScene(canvas: HTMLCanvasElement): HeroScene | null {
   const camera = new OrthographicCamera(-1, 1, 1, -1, 0, 1); // projection happens in the shader
 
   // ---- State
-  const state = { morph: 0, regroup: 1 };
+  /** morph: E (or A) to B; space: A to E; regroup: previous page to this one. */
+  const state = { morph: 0, space: 0, regroup: 1 };
   const pointer = { x: -9999, y: -9999, targetX: -9999, targetY: -9999, strength: 0, target: 0, vx: 0, vy: 0 };
   let layouts: PageLayouts | null = null;
   let prevColor: RGB = [0, 0, 0];
   let morphTrigger: ScrollTrigger | null = null;
+  let spaceTrigger: ScrollTrigger | null = null;
   let regroupTween: gsap.core.Tween | null = null;
   let stopRendering: (() => void) | null = null;
   let running = false;
@@ -169,6 +191,20 @@ export function createHeroScene(canvas: HTMLCanvasElement): HeroScene | null {
     uniforms.uSizeB.value = next.b.size;
     uniforms.uDensityA.value = next.a.density;
     uniforms.uDensityB.value = next.b.density;
+    const spaceInfo = aEInfo.array as Float32Array;
+    if (next.space) {
+      (aE.array as Float32Array).set(next.space.positions);
+      spaceInfo.set(next.space.info);
+    } else {
+      (aE.array as Float32Array).fill(0);
+      spaceInfo.fill(0);
+    }
+    aE.needsUpdate = true;
+    aEInfo.needsUpdate = true;
+    const root = getComputedStyle(document.documentElement);
+    uniforms.uColorE.value.set(...cssColor(root.getPropertyValue('--color-ink')));
+    uniforms.uAccent.value.set(...cssColor(root.getPropertyValue('--color-accent')));
+    space.setup(next.space);
     uniforms.uFadeOnArrival.value = next.fadeOnArrival ? 1 : 0;
     idleFrameDrawn = false;
   }
@@ -207,8 +243,11 @@ export function createHeroScene(canvas: HTMLCanvasElement): HeroScene | null {
     const { a, b } = layouts;
     const [fx, , fw] = (a.field ?? NO_FIELD).rect;
     const m = state.morph;
+    const e = state.space;
     const r = state.regroup;
     const time = uniforms.uTime.value;
+    const spacePositions = aE.array as Float32Array;
+    const spaceInfo = aEInfo.array as Float32Array;
     const prev = aPrev.array as Float32Array;
     const prevStyles = aPrevStyle.array as Float32Array;
     const fade = layouts.fadeOnArrival ? 1 - smoothstep(0.8, 1, m) : 1;
@@ -234,21 +273,38 @@ export function createHeroScene(canvas: HTMLCanvasElement): HeroScene | null {
       ay -= scrollY * a.scrollFactor;
       const bx = b.positions[i * 2]!;
       const by = b.positions[i * 2 + 1]! - scrollY * b.scrollFactor;
+      let ex = ax;
+      let ey = ay;
+      let alphaE = 0;
+      let sizeE = 0;
+      if (e > 0) {
+        const [px, py, persp, depth] = space.project(spacePositions[i * 3]!, spacePositions[i * 3 + 1]!, spacePositions[i * 3 + 2]!);
+        const halo = spaceInfo[i * 2 + 1]! < -0.5;
+        ex = px;
+        ey = py;
+        alphaE = SPACE_ALPHA * mix(SPACE_BACK_ALPHA, 1, depth) * (halo ? SPACE_HALO_ALPHA : 1);
+        sizeE = SPACE_SIZE * persp * (halo ? FIELD_SIZE : 1);
+      }
+      const toward = Math.sin(Math.PI * e) * (40 + 200 * z);
+      const tx = mix(ax, ex, e) + dx * toward;
+      const ty = mix(ay, ey, e) + dy * toward;
       const burst = Math.sin(Math.PI * m) * (60 + 240 * z);
-      const cx = mix(ax, bx, m) + dx * burst;
-      const cy = mix(ay, by, m) + dy * burst;
+      const cx = mix(tx, bx, m) + dx * burst;
+      const cy = mix(ty, by, m) + dy * burst;
       const swirl = Math.sin(Math.PI * r) * (40 + 160 * z);
       positions[i * 2] = mix(prev[i * 2]!, cx, r) - dy * swirl;
       positions[i * 2 + 1] = mix(prev[i * 2 + 1]!, cy, r) + dx * swirl;
 
       const alphaA = a.alpha * (field ? FIELD_ALPHA * edge : 1);
       const sizeA = a.size * (field ? FIELD_SIZE : 1);
-      const alphaNow = mix(alphaA, b.alpha, m) * fade;
-      const densityNow = mix(visible(a.density, i), visible(b.density, i), m);
-      styles[i * 2] = mix(prevStyles[i * 2]!, alphaNow * densityNow, r);
-      styles[i * 2 + 1] = mix(prevStyles[i * 2 + 1]!, mix(sizeA, b.size, m), r);
+      const alphaNow = mix(mix(alphaA, alphaE, e), b.alpha, m) * fade;
+      const densityNow = mix(mix(visible(a.density, i), 1, e), visible(b.density, i), m);
+      styles[i * 2] = Math.min(1, mix(prevStyles[i * 2]!, alphaNow * densityNow, r));
+      styles[i * 2 + 1] = mix(prevStyles[i * 2 + 1]!, mix(mix(sizeA, sizeE, e), b.size, m), r);
     }
-    const colorNow = [0, 1, 2].map((k) => mix(a.color[k]!, b.color[k]!, m));
+    const ink = uniforms.uColorE.value;
+    const colorA = [0, 1, 2].map((k) => mix(a.color[k]!, [ink.x, ink.y, ink.z][k]!, e));
+    const colorNow = [0, 1, 2].map((k) => mix(colorA[k]!, b.color[k]!, m));
     const color = [0, 1, 2].map((k) => mix(prevColor[k]!, colorNow[k]!, r)) as RGB;
     return { positions, styles, color };
   }
@@ -259,14 +315,30 @@ export function createHeroScene(canvas: HTMLCanvasElement): HeroScene | null {
     regroupTween = gsap.to(state, { regroup: 1, duration: seconds('cinematic'), ease: gsapEase.inOut });
   }
 
-  /** Reads the current page's layouts and, on home, ties the morph to scrolling. */
+  /**
+   * Reads the current page's layouts and, on home, ties the morphs to scrolling: into the
+   * embedding space while its stage scrolls up to the middle of the window, then (once
+   * the stage is about to leave) on to the first cover.
+   */
   function setupPage(): void {
-    morphTrigger?.kill();
-    morphTrigger = null;
+    killTriggers();
     applyLayouts(readPageLayouts(count));
+    const hasSpace = Boolean(layouts?.space);
+    if (hasSpace) {
+      spaceTrigger = ScrollTrigger.create({
+        start: 0,
+        end: () => space.measure()?.arrive ?? 1,
+        onUpdate: (self) => {
+          state.space = self.progress;
+        },
+      });
+      state.space = spaceTrigger.progress;
+    } else {
+      state.space = 0;
+    }
     if (layouts?.morphEnd) {
       morphTrigger = ScrollTrigger.create({
-        start: 0,
+        start: hasSpace ? () => space.measure()?.release ?? 0 : 0,
         endTrigger: layouts.morphEnd,
         end: 'center 60%',
         onUpdate: (self) => {
@@ -277,6 +349,13 @@ export function createHeroScene(canvas: HTMLCanvasElement): HeroScene | null {
     } else {
       state.morph = 0;
     }
+  }
+
+  function killTriggers(): void {
+    morphTrigger?.kill();
+    morphTrigger = null;
+    spaceTrigger?.kill();
+    spaceTrigger = null;
   }
 
   function render(time: number, deltaTime: number): void {
@@ -297,6 +376,18 @@ export function createHeroScene(canvas: HTMLCanvasElement): HeroScene | null {
     uniforms.uPointerStrength.value = pointer.strength;
     uniforms.uMorph.value = state.morph;
     uniforms.uRegroup.value = state.regroup;
+
+    // The embedding space turns toward the cursor (-0.5 to 0.5 across the window).
+    if (layouts?.space) {
+      const toward = {
+        x: pointer.strength * (pointer.x / innerWidth - 0.5),
+        y: pointer.strength * (pointer.y / innerHeight - 0.5),
+      };
+      space.update(time, toward, state.space * state.regroup, state.morph);
+    }
+    uniforms.uSpace.value = state.space;
+    uniforms.uEScale.value = space.scale;
+    uniforms.uHighlight.value = space.highlight;
 
     // Home: the particles land on the first cover as noise, which then denoises with the scroll.
     const landing = layouts?.fadeOnArrival ? layouts.morphEnd : null;
@@ -352,8 +443,8 @@ export function createHeroScene(canvas: HTMLCanvasElement): HeroScene | null {
     applyPrev(positions, styles, color);
     regroupTween?.kill();
     state.regroup = 0;
-    morphTrigger?.kill();
-    morphTrigger = null;
+    killTriggers();
+    space.setup(null);
     navigated = true;
   });
   // ...then regroup them into the new page's layout.
@@ -395,8 +486,8 @@ export function createHeroScene(canvas: HTMLCanvasElement): HeroScene | null {
     stopRendering?.();
     stopRendering = null;
     regroupTween?.kill();
-    morphTrigger?.kill();
-    morphTrigger = null;
+    killTriggers();
+    space.teardown();
     provideDiffusion(null);
     covers.stop();
     document.documentElement.classList.remove(LIVE_CLASS);
@@ -404,7 +495,7 @@ export function createHeroScene(canvas: HTMLCanvasElement): HeroScene | null {
 
   if (import.meta.env.DEV) {
     Object.assign(window, {
-      __hero: { state, count, running: () => running, layouts: () => layouts, pointer, uniforms, covers },
+      __hero: { state, count, running: () => running, layouts: () => layouts, pointer, uniforms, covers, space },
     });
   }
 

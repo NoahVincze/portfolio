@@ -3,7 +3,8 @@
  * real DOM so particles line up exactly with the HTML they stand in for.
  *
  *   Home:        A = the name in the hero heading plus a field of particles across the
- *                whole hero, B = the first project cover. Scrolling morphs A into B.
+ *                whole hero, B = the first project cover. Scrolling morphs A into B, by way
+ *                of the embedding space (E, see `SpaceLayout`) when the page has one.
  *   Other pages: A = B = a faint field of dust behind the content.
  */
 
@@ -31,9 +32,34 @@ export interface Layout {
 /** Share of the particles that form the home hero's ambient field instead of the name. */
 export const HERO_FIELD_SHARE = 0.4;
 
+/**
+ * The embedding space (home): a 3D point cloud, one cluster per embedded item
+ * (src/components/EmbeddingSpace.astro). Positions are in the space's own units (the
+ * unit sphere); the vertex shader rotates and projects them into the stage every frame.
+ */
+export interface SpaceLayout {
+  section: HTMLElement;
+  stage: HTMLElement;
+  /** The area the cloud fills (the labels' container). */
+  area: HTMLElement;
+  /** x, y, z per particle. */
+  positions: Float32Array;
+  /** Per particle: accent tint (0 or 1) and the index of the point it belongs to. */
+  info: Float32Array;
+  points: SpacePointData[];
+  labels: { el: HTMLElement; index: number; priority: number }[];
+}
+
+export interface SpacePointData {
+  p: [number, number, number];
+  k: 'project' | 'passage' | 'skill' | 'experience';
+}
+
 export interface PageLayouts {
   a: Layout;
   b: Layout;
+  /** The embedding space between A and B (home), if the page has one. */
+  space: SpaceLayout | null;
   /** Home only: the particles fade out as they land on the real cover image. */
   fadeOnArrival: boolean;
   /** The element whose position ends the scroll morph, if the page has one. */
@@ -214,6 +240,79 @@ export function scatteredPositions(count: number, rand = Math.random): Float32Ar
   return positions;
 }
 
+/** How many particles each kind of point gets, relative to the others, and how tight they sit. */
+const SPACE_WEIGHT = { project: 12, experience: 5, skill: 5, passage: 1.2 } as const;
+const SPACE_SPREAD = { project: 0.05, experience: 0.035, skill: 0.035, passage: 0.07 } as const;
+const LABEL_PRIORITY = { project: 3, experience: 2, skill: 1, passage: 0 } as const;
+
+function gaussian(rand: () => number): number {
+  return Math.sqrt(-2 * Math.log(Math.max(rand(), 1e-9))) * Math.cos(2 * Math.PI * rand());
+}
+
+/**
+ * Particles for the embedding space. Particles below `fieldFrom` (by rank) form tight
+ * clusters on the points; the rest are a faint halo: some loosely around points, some
+ * spread through the whole sphere, so the space reads as a volume.
+ */
+function spaceLayout(count: number, fieldFrom: number, rand: () => number): SpaceLayout | null {
+  const section = document.querySelector<HTMLElement>('[data-space]');
+  const stage = section?.querySelector<HTMLElement>('[data-space-stage]');
+  const area = section?.querySelector<HTMLElement>('[data-space-labels]');
+  const json = section?.querySelector('[data-space-points]')?.textContent;
+  if (!section || !stage || !area || !json) return null;
+  let points: SpacePointData[];
+  try {
+    points = JSON.parse(json) as SpacePointData[];
+  } catch {
+    return null;
+  }
+  if (!points.length) return null;
+
+  // Cumulative weights, to pick a point for each particle.
+  const cumulative: number[] = [];
+  let total = 0;
+  for (const point of points) cumulative.push((total += SPACE_WEIGHT[point.k] ?? 1));
+  const pick = () => {
+    const r = rand() * total;
+    let i = 0;
+    while (cumulative[i]! < r) i++;
+    return i;
+  };
+
+  const positions = new Float32Array(count * 3);
+  const info = new Float32Array(count * 2);
+  const fieldStart = Math.floor(fieldFrom * count);
+  for (let i = 0; i < count; i++) {
+    const index = pick();
+    const point = points[index]!;
+    let spread: number = SPACE_SPREAD[point.k] ?? 0.04;
+    let [x, y, z] = point.p;
+    if (i >= fieldStart) {
+      if (rand() < 0.55) {
+        spread = 0.2;
+      } else {
+        // Anywhere in a sphere a little larger than the cloud.
+        const r = 1.15 * Math.cbrt(rand());
+        const theta = 2 * Math.PI * rand();
+        const phi = Math.acos(2 * rand() - 1);
+        [x, y, z] = [r * Math.sin(phi) * Math.cos(theta), r * Math.sin(phi) * Math.sin(theta), r * Math.cos(phi)];
+        spread = 0;
+      }
+    }
+    positions[i * 3] = x + gaussian(rand) * spread;
+    positions[i * 3 + 1] = y + gaussian(rand) * spread;
+    positions[i * 3 + 2] = z + gaussian(rand) * spread;
+    info[i * 2] = point.k === 'project' && i < fieldStart ? 1 : 0;
+    info[i * 2 + 1] = i < fieldStart ? index : -1;
+  }
+
+  const labels = [...area.querySelectorAll<HTMLElement>('[data-space-point]')].map((el) => {
+    const index = Number(el.dataset.spacePoint);
+    return { el, index, priority: LABEL_PRIORITY[points[index]?.k ?? 'passage'] };
+  });
+  return { section, stage, area, positions, info, points, labels };
+}
+
 export function readPageLayouts(count: number): PageLayouts {
   const rand = random(hash(location.pathname));
   const root = getComputedStyle(document.documentElement);
@@ -236,11 +335,12 @@ export function readPageLayouts(count: number): PageLayouts {
     return {
       a,
       b: cover ? rectLayout(cover, count, rand) : { ...a, field: undefined },
+      space: spaceLayout(count, nameCount / count, rand),
       fadeOnArrival: Boolean(cover),
       morphEnd: cover,
     };
   }
 
   const dust = dustLayout(count, muted, rand);
-  return { a: dust, b: dust, fadeOnArrival: false, morphEnd: null };
+  return { a: dust, b: dust, space: null, fadeOnArrival: false, morphEnd: null };
 }
