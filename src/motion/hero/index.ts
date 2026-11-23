@@ -41,6 +41,7 @@ function loadScene(canvas: HTMLCanvasElement): Promise<HeroScene | null> {
     .then(async ({ createHeroScene }) => {
       await yieldToBrowser();
       const scene = createHeroScene(canvas);
+      await scene?.prepare();
       await yieldToBrowser();
       return scene;
     })

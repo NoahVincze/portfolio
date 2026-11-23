@@ -2,8 +2,8 @@
  * Particle layouts: where every particle should sit for a given page, measured from the
  * real DOM so particles line up exactly with the HTML they stand in for.
  *
- *   Home:        A = the name in the hero heading, B = the first project cover.
- *                Scrolling morphs A into B.
+ *   Home:        A = the name in the hero heading plus a field of particles across the
+ *                whole hero, B = the first project cover. Scrolling morphs A into B.
  *   Other pages: A = B = a faint field of dust behind the content.
  */
 
@@ -20,7 +20,16 @@ export interface Layout {
   size: number;
   /** Fraction of particles that are visible (0 to 1). */
   density: number;
+  /**
+   * An ambient field: particles from index `from * count` on are spread over `rect`
+   * (document pixels: x, y, width, height). The shader drifts them sideways, draws them
+   * smaller and fainter, and lets the cursor sweep through them.
+   */
+  field?: { from: number; rect: [number, number, number, number] };
 }
+
+/** Share of the particles that form the home hero's ambient field instead of the name. */
+export const HERO_FIELD_SHARE = 0.4;
 
 export interface PageLayouts {
   a: Layout;
@@ -182,6 +191,19 @@ function dustLayout(count: number, color: RGB, rand: () => number): Layout {
   return { positions, scrollFactor: 0.08, color, alpha: 0.35, size: 1.8, density: 0.18 };
 }
 
+/** Positions spread evenly over a rectangle (document pixels), jittered so it never looks like a grid. */
+function fieldPositions(rect: [number, number, number, number], count: number, rand: () => number): Float32Array {
+  const [x, y, width, height] = rect;
+  const columns = Math.max(1, Math.round(Math.sqrt((count * width) / height)));
+  const rows = Math.ceil(count / columns);
+  const positions = new Float32Array(count * 2);
+  for (let i = 0; i < count; i++) {
+    positions[i * 2] = x + ((i % columns) + rand()) * (width / columns);
+    positions[i * 2 + 1] = y + (Math.floor(i / columns) + rand()) * (height / rows);
+  }
+  return positions;
+}
+
 /** Random positions across the viewport: where particles start before the intro. */
 export function scatteredPositions(count: number, rand = Math.random): Float32Array {
   const positions = new Float32Array(count * 2);
@@ -199,12 +221,21 @@ export function readPageLayouts(count: number): PageLayouts {
   const muted = cssColor(root.getPropertyValue('--color-muted'));
 
   const name = document.querySelector<HTMLElement>('.hero__name');
-  const nameLayout = name ? textLayout(name, count, ink, rand) : null;
-  if (nameLayout) {
+  const hero = name?.closest<HTMLElement>('.hero');
+  const nameCount = Math.round(count * (1 - HERO_FIELD_SHARE));
+  const nameLayout = name ? textLayout(name, nameCount, ink, rand) : null;
+  if (nameLayout && hero) {
+    // The rest of the particles fill the whole hero, edge to edge of the window.
+    const box = hero.getBoundingClientRect();
+    const rect: [number, number, number, number] = [0, box.top + scrollY, document.documentElement.clientWidth, box.height];
+    const positions = new Float32Array(count * 2);
+    positions.set(nameLayout.positions);
+    positions.set(fieldPositions(rect, count - nameCount, rand), nameCount * 2);
+    const a: Layout = { ...nameLayout, positions, field: { from: nameCount / count, rect } };
     const cover = document.querySelector<HTMLElement>('main [data-reveal="image"]');
     return {
-      a: nameLayout,
-      b: cover ? rectLayout(cover, count, rand) : nameLayout,
+      a,
+      b: cover ? rectLayout(cover, count, rand) : { ...a, field: undefined },
       fadeOnArrival: Boolean(cover),
       morphEnd: cover,
     };
