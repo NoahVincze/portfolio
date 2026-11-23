@@ -10,7 +10,7 @@ interface Props {
 }
 
 const { project, headingLevel: Heading = 'h3', priority = false } = Astro.props;
-const { title, summary, year, tags, accent, cover } = project.data;
+const { title, summary, year, tags, cover } = project.data;
 const url = projectUrl(project);
 ---
 
@@ -24,7 +24,7 @@ const url = projectUrl(project);
       transition:name={`cover-${project.id}`}
       aria-hidden="true"
     >
-      <div data-reveal-media style={`--cover: ${accent}`}>
+      <div data-reveal-media>
         {
           cover && (
             <img

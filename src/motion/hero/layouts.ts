@@ -196,17 +196,17 @@ function textLayout(el: HTMLElement, count: number, color: RGB, rand: () => numb
   return { positions, scrollFactor: 1, color, alpha: 1, size, density: 1 };
 }
 
-/** Particles spread over a rectangle, in its colour (used for the first project cover). */
+/** Particles spread over a rectangle, in the accent colour (the first project cover, where they land). */
 function rectLayout(frame: HTMLElement, count: number, rand: () => number): Layout {
   const rect = frame.getBoundingClientRect();
-  const media = frame.querySelector<HTMLElement>('[data-reveal-media]') ?? frame;
   const positions = new Float32Array(count * 2);
   for (let i = 0; i < count; i++) {
     positions[i * 2] = rect.left + scrollX + rand() * rect.width;
     positions[i * 2 + 1] = rect.top + scrollY + rand() * rect.height;
   }
   const size = Math.min(4, Math.max(1.5, Math.sqrt((rect.width * rect.height) / count) * 0.9));
-  return { positions, scrollFactor: 1, color: cssColor(getComputedStyle(media).backgroundColor), alpha: 1, size, density: 1 };
+  const accent = cssColor(getComputedStyle(document.documentElement).getPropertyValue('--color-accent'));
+  return { positions, scrollFactor: 1, color: accent, alpha: 1, size, density: 1 };
 }
 
 /** A faint field behind the content, different for every page. */

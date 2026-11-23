@@ -6,7 +6,6 @@ role: Game design and full-stack development
 tags: [LLMs, Game, Web]
 featured: true
 order: 5
-accent: '#b9b383'
 cover: /covers/token-in-one.svg
 link: https://token-in-one.com/
 repo: https://github.com/NoahVincze/token-in-one

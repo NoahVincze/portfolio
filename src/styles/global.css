@@ -340,11 +340,14 @@ html[data-intro] .hero__name {
   font-variant-numeric: tabular-nums;
 }
 
-/* Image frames clip the media that drifts inside them. */
+/* Image frames clip the media that drifts inside them. A hairline edge keeps a cover in
+   the page's paper colour from blending into the page. */
 [data-reveal='image'],
 [data-parallax] {
   position: relative;
   overflow: hidden;
+  outline: 1px solid var(--color-line);
+  outline-offset: -1px;
 }
 
 [data-reveal-media] {

@@ -6,7 +6,6 @@ role: Data Scientist, ML & AI Unit, Bayer
 tags: [Agents, LLMs, Data]
 featured: true
 order: 1
-accent: '#8fa6b1'
 cover: /covers/agentic-data-access.svg
 ---
 

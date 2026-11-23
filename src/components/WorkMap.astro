@@ -42,7 +42,7 @@ const FLIP_AT = 0.2;
         <li
           class:list={['work-map__point', { 'is-flipped': positions[i]![0]! > FLIP_AT }]}
           data-map-project={project.id}
-          style={`--x: ${percent(positions[i]![0]!)}; --y: ${percent(-(positions[i]![1] ?? 0))}; --accent: ${project.data.accent}`}
+          style={`--x: ${percent(positions[i]![0]!)}; --y: ${percent(-(positions[i]![1] ?? 0))}`}
         >
           <a href={projectUrl(project)} data-cursor="view" data-map-link>
             <span class="work-map__title">{project.data.title}</span>

@@ -1,30 +1,36 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1200" viewBox="0 0 1600 1200">
+  <style>
+    .bg { fill: #ebe8e1 } .ink { fill: #151514 } .muted { fill: #5f5c56 } .acc { fill: #e0471b }
+    .ink-s { stroke: #151514 } .muted-s { stroke: #5f5c56 } .acc-s { stroke: #e0471b } .line-s { stroke: #d6d1c7 }
+    .grid { fill: #151514; fill-opacity: 0.09 }
+    @media (prefers-color-scheme: dark) {
+      .bg { fill: #1a1a18 } .ink { fill: #f0ede6 } .muted { fill: #a39f96 } .acc { fill: #ff6a3d }
+      .ink-s { stroke: #f0ede6 } .muted-s { stroke: #a39f96 } .acc-s { stroke: #ff6a3d } .line-s { stroke: #2d2c29 }
+      .grid { fill: #f0ede6; fill-opacity: 0.07 }
+    }
+    text { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace }
+  </style>
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#b8d0b2"/>
-      <stop offset="1" stop-color="#5f8a5a"/>
-    </linearGradient>
-    <radialGradient id="glow" gradientUnits="userSpaceOnUse" cx="1180" cy="380" r="760">
-      <stop offset="0" stop-color="#ffffff" stop-opacity="0.45"/>
-      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
-    </radialGradient>
+    <pattern id="dots" width="40" height="40" patternUnits="userSpaceOnUse">
+      <circle class="grid" cx="20" cy="20" r="1.6"/>
+    </pattern>
   </defs>
-  <rect width="1600" height="1200" fill="url(#g)"/>
-  <rect width="1600" height="1200" fill="url(#glow)"/>
-  <rect x="760" y="250" width="740" height="520" rx="18" fill="#ffffff" fill-opacity="0.72"/>
-  <text x="810" y="330" fill="#2e7d32" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="38">✓</text>
-  <text x="870" y="330" fill="#151514" fill-opacity="0.75" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="30">test_discount_cap</text>
-  <text x="810" y="408" fill="#2e7d32" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="38">✓</text>
-  <text x="870" y="408" fill="#151514" fill-opacity="0.75" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="30">test_save20</text>
-  <text x="810" y="486" fill="#2e7d32" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="38">✓</text>
-  <text x="870" y="486" fill="#151514" fill-opacity="0.75" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="30">test_vat_after_discount</text>
-  <text x="810" y="564" fill="#c0392b" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="38">✕</text>
-  <text x="870" y="564" fill="#151514" fill-opacity="1" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="30">test_checkout_integration</text>
-  <text x="810" y="642" fill="#2e7d32" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="38">✓</text>
-  <text x="870" y="642" fill="#151514" fill-opacity="0.75" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="30">test_rounding</text>
-  <rect x="810" y="700" width="250" height="48" rx="24" fill="#151514"/>
-  <text x="935" y="733" text-anchor="middle" fill="#ffffff" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="26" letter-spacing="2">BLOCKED</text>
-  <text x="1080" y="733" fill="#151514" fill-opacity="0.65" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="24">218.00 → 214.20 ?</text>
-  <text x="96" y="160" fill="#151514" fill-opacity="0.6" font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-size="32" letter-spacing="5">GREEN MEANS IT WORKS</text>
-  <text x="88" y="1060" fill="#151514" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif" font-size="168" font-weight="600" letter-spacing="-6.0">truegreen</text>
+  <rect class="bg" width="1600" height="1200"/>
+  <rect width="1600" height="1200" fill="url(#dots)"/>
+  <text x="120" y="244" font-size="42" letter-spacing="2"><tspan class="muted">FIG. 04</tspan><tspan class="ink" dx="28">GREEN MEANS IT WORKS</tspan></text>
+  <text class="muted" x="380" y="380" font-size="44">✓</text>
+  <text class="muted" x="452" y="380" font-size="42">test_discount_cap</text>
+  <text class="muted" x="380" y="460" font-size="44">✓</text>
+  <text class="muted" x="452" y="460" font-size="42">test_save20</text>
+  <text class="muted" x="380" y="540" font-size="44">✓</text>
+  <text class="muted" x="452" y="540" font-size="42">test_vat_after_discount</text>
+  <text class="acc" x="380" y="620" font-size="44">✕</text>
+  <text class="ink" x="452" y="620" font-size="42">test_checkout_integration</text>
+  <text class="muted" x="380" y="700" font-size="44">✓</text>
+  <text class="muted" x="452" y="700" font-size="42">test_rounding</text>
+  <line class="line-s" x1="380" y1="768" x2="1220" y2="768" stroke-width="2"/>
+  <rect class="acc-s" x="380" y="784" width="250" height="66" rx="33" fill="none" stroke-width="3"/>
+  <text class="acc" x="505" y="830" font-size="36" text-anchor="middle" letter-spacing="2">BLOCKED</text>
+  <text class="ink" x="664" y="830" font-size="40">218.00 → 214.20 ?</text>
+  <text class="muted" x="1480" y="1004" font-size="38" text-anchor="end">test edits: 11/12 without · 0/12 with</text>
 </svg>

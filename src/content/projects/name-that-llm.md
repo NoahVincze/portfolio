@@ -6,7 +6,6 @@ role: 'Solo competitor: research, modelling and the Kaggle pipeline'
 tags: [ML, LLMs, Kaggle]
 featured: true
 order: 3
-accent: '#a8a1c0'
 cover: /covers/name-that-llm.svg
 repo: https://github.com/NoahVincze/name-that-llm
 ---

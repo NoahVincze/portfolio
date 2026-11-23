@@ -6,7 +6,6 @@ role: 'Author: the skill, its audit script and the evals'
 tags: [Agents, Evals, Tooling]
 featured: true
 order: 4
-accent: '#95b78f'
 cover: /covers/truegreen.svg
 repo: https://github.com/NoahVincze/true-green
 ---
