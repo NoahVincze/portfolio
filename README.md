@@ -2,7 +2,7 @@
 
 Personal portfolio site, built with [Astro](https://astro.build), [GSAP](https://gsap.com), [Lenis](https://lenis.darkroom.engineering) and (from Phase 3) [Three.js](https://threejs.org).
 
-The animation plan lives in the Personal Website Animation Spec. Built so far: **Phase 1** (page structure, motion tokens, shared frame loop, motion switch), **Phase 2** (line and image reveals, page transitions with the thumbnail-to-cover morph, reading progress bar), **Phase 3** (the particle hero) and **Phase 4** (custom cursor, magnetic links, first-visit intro, sideways work section, cover hover shader, work filter, self-drawing timeline, contact scramble and copy).
+The animation plan lives in the Personal Website Animation Spec. Built so far: **Phase 1** (page structure, motion tokens, shared frame loop, motion switch), **Phase 2** (line and image reveals, page transitions with the thumbnail-to-cover morph, reading progress bar), **Phase 3** (the particle hero), **Phase 4** (custom cursor, magnetic links, first-visit intro, sideways work section, cover hover shader, work filter, self-drawing timeline, contact scramble and copy) and **Phase 5** (physics skill chips, scroll-speed footer marquee).
 
 ## Getting started
 
@@ -30,7 +30,7 @@ npm run preview   # serve dist/ locally
 | `src/motion/loop.ts` | The shared frame loop and Lenis smooth scroll |
 | `src/motion/preference.ts` | The motion switch (system setting + footer toggle) |
 | `src/motion/page.ts` | Per-page lifecycle: builds effects on each page, cleans them up before the next |
-| `src/motion/effects/` | Per-page effects: reveals, progress bar, magnetic links, sideways section, filter, timeline, contact |
+| `src/motion/effects/` | Per-page effects: reveals, progress bar, magnetic links, sideways section, filter, timeline, contact, physics chips, footer marquee |
 | `src/motion/intro.ts` | First-visit intro (the animation itself is CSS, `.site-intro` in `global.css`) |
 | `src/motion/cursor.ts` | Custom cursor |
 | `src/motion/hero/` | The particle hero: startup (`index.ts`), Three.js scene (`scene.ts`), layouts measured from the page (`layouts.ts`), shaders (`shaders.ts`), cover hover effect (`hover.ts`) |
@@ -58,6 +58,8 @@ Mark elements with data attributes; the effects in `src/motion/effects/` pick th
 | `data-hover-shader` on a link containing a cover with an `<img>` | Ripple and RGB-split hover on the cover | Nothing |
 | `data-horizontal` on a section, `data-horizontal-track` on its list | The section pins and the list slides sideways (768 px and wider) | A normal grid |
 | `data-scramble` | Text scrambles on hover and focus | Nothing |
+| `data-physics` on a list | Its items drop into a box and can be thrown around (Matter.js, loaded only when the box is about to appear) | A plain list |
+| `data-marquee-track` holding two identical groups | Loops sideways; scrolling speeds it up and sets its direction | Stands still |
 
 Project cards and project page covers share `transition:name="cover-<project>"`, so the card morphs into the cover. They also carry `data-project-url`, so a cover that just morphed in does not play its wipe again.
 

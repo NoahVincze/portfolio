@@ -6,6 +6,21 @@ const year = new Date().getFullYear();
 ---
 
 <footer class="site-footer">
+  {/* Decorative: runs faster as you scroll (src/motion/effects/marquee.ts). Two identical groups make the loop seamless. */}
+  <div class="marquee" aria-hidden="true">
+    <div class="marquee__track" data-marquee-track>
+      {
+        [0, 1].map(() => (
+          <div class="marquee__group">
+            <span>{site.name}</span>
+            <span class="marquee__dot">●</span>
+            <span class="marquee__outline">{site.name}</span>
+            <span class="marquee__dot">●</span>
+          </div>
+        ))
+      }
+    </div>
+  </div>
   <div class="container site-footer__inner">
     <div class="site-footer__contact">
       <p class="eyebrow">Get in touch</p>
@@ -34,6 +49,39 @@ const year = new Date().getFullYear();
   .site-footer {
     border-top: 1px solid var(--color-line);
     padding-block: var(--space-6) var(--space-5);
+  }
+
+  .marquee {
+    overflow: hidden;
+    margin-bottom: var(--space-6);
+  }
+
+  .marquee__track {
+    display: flex;
+    width: max-content;
+    will-change: transform;
+  }
+
+  .marquee__group {
+    display: flex;
+    align-items: center;
+    gap: 0.3em;
+    padding-right: 0.3em;
+    font-size: clamp(4rem, 14vw, 13rem);
+    font-weight: 600;
+    line-height: 1.05;
+    letter-spacing: -0.045em;
+    white-space: nowrap;
+  }
+
+  .marquee__outline {
+    color: transparent;
+    -webkit-text-stroke: 1.5px var(--color-ink);
+  }
+
+  .marquee__dot {
+    font-size: 0.22em;
+    color: var(--color-accent);
   }
 
   .site-footer__inner {
