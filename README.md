@@ -16,6 +16,24 @@ npm run build     # static site in dist/
 npm run preview   # serve dist/ locally
 ```
 
+## Deploying (Vercel)
+
+The repository is ready for Vercel; no build settings need changing.
+
+1. Sign in to [Vercel](https://vercel.com) with GitHub, create a new project and import `NoahVincze/portfolio`.
+2. Vercel detects Astro. Keep the suggested settings (build `npm run build`, output `dist`) and deploy.
+3. From then on, every push to `main` deploys the live site, and every pull request gets its own preview link. Vercel keeps preview deployments out of search engines.
+
+**The site's address** (canonical URLs, sitemap, share previews) comes from Vercel automatically: the `.vercel.app` address, or your custom domain once you add one under the project's Domains settings. No code change is needed. To force a different address, set a `SITE_URL` environment variable in Vercel.
+
+**`vercel.json`** sets trailing-slash URLs (`/work` redirects to `/work/`), one-year caching for the fingerprinted files in `/_astro/`, and basic security headers.
+
+**Share preview and home-screen icon.** `public/og.png` (1200 x 630, shown when a link to the site is shared) and `public/apple-touch-icon.png` are rendered from the templates in `scripts/`. After changing the name or tagline, edit `scripts/og-image.html` and run:
+
+```bash
+npx playwright screenshot --viewport-size=1200,630 scripts/og-image.html public/og.png
+```
+
 ## Where things live
 
 | Path | What it is |
