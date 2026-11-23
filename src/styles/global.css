@@ -327,12 +327,18 @@ html[data-intro] .hero__name {
 /* ---------- First-visit intro ---------- */
 
 /*
- * Pure CSS from the first paint (src/motion/intro.ts only records it and cleans up).
- * The letters assemble (about 0.6 s), then the panel wipes away from the bottom (0.4 s),
- * uncovering the hero name in the same place. Total: 1.1 s.
+ * Pure CSS from the first paint (src/motion/intro.ts records it, ticks the numbers in step
+ * with the curve, lets visitors skip it and cleans up). A small model trains: the loss
+ * curve draws itself over 12 epochs (1 s) and the run reports "converged". Meanwhile the
+ * name crystallises out of a blur, letter by letter, in the hero's exact place. The training
+ * readout fades, then the panel wipes away from the bottom (0.4 s). Total: 1.85 s.
  */
 .site-intro {
   display: none;
+  --intro-train: 1000ms;
+  --intro-name-at: 380ms;
+  --intro-name-spread: 520ms;
+  --intro-wipe-at: 1450ms;
 }
 
 html[data-intro='play'] .site-intro {
@@ -341,16 +347,114 @@ html[data-intro='play'] .site-intro {
   inset: 0;
   z-index: 100;
   background: var(--color-bg);
-  animation: intro-wipe var(--dur-base) var(--ease-in-out) 700ms forwards;
+  animation: intro-wipe var(--dur-base) var(--ease-in-out) var(--intro-wipe-at) forwards;
 }
 
 /* Mirrors the hero's layout, so the name lines up with the real heading underneath. */
 .site-intro__inner {
   display: grid;
-  align-content: end;
+  grid-template-rows: 1fr auto auto;
   gap: var(--space-4);
   min-height: 100svh;
   padding-block: calc(4rem + var(--space-6)) var(--space-6);
+}
+
+/* The training readout: run name and status, the loss chart, metrics, a progress bar. */
+.site-intro__training {
+  align-self: end;
+  display: grid;
+  gap: var(--space-3);
+  width: min(100%, 40rem);
+  margin-bottom: var(--space-5);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+  animation: intro-fade-out var(--dur-quick) var(--ease-in) calc(var(--intro-wipe-at) - var(--dur-quick)) forwards;
+}
+
+.site-intro__run {
+  display: flex;
+  gap: 1ch;
+}
+
+.site-intro__run-name {
+  color: var(--color-ink);
+}
+
+/* "training" gives way to "converged" when the curve is done. */
+.site-intro__status {
+  display: grid;
+  margin-left: auto;
+}
+
+.site-intro__status > * {
+  grid-area: 1 / 1;
+}
+
+.site-intro__status-training {
+  animation: intro-fade-out 1ms linear var(--intro-train) forwards;
+}
+
+.site-intro__status-done {
+  color: var(--color-accent);
+  opacity: 0;
+  animation: intro-fade-in var(--dur-quick) var(--ease-out) var(--intro-train) forwards;
+}
+
+.site-intro__chart {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.site-intro__axis {
+  stroke: var(--color-line);
+  stroke-width: 1;
+}
+
+.site-intro__curve {
+  fill: none;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: intro-draw var(--intro-train) linear forwards;
+}
+
+.site-intro__curve--train {
+  stroke: var(--color-ink);
+  stroke-width: 2;
+}
+
+.site-intro__curve--val {
+  stroke: var(--color-accent);
+  stroke-width: 1.5;
+  opacity: 0.75;
+}
+
+.site-intro__metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-5);
+}
+
+.site-intro__metrics > div {
+  display: flex;
+  gap: 1ch;
+}
+
+.site-intro__metrics dd {
+  color: var(--color-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.site-intro__progress {
+  display: block;
+  height: 2px;
+  background: var(--color-ink);
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  animation: intro-progress var(--intro-train) linear forwards;
 }
 
 .site-intro__name {
@@ -362,15 +466,18 @@ html[data-intro='play'] .site-intro {
 
 .site-intro__line {
   display: block;
-  overflow: clip;
   padding-bottom: 0.15em;
   margin-bottom: -0.15em;
 }
 
+/* Each letter condenses out of a blur at its own moment, like a sample settling. */
 .site-intro__char {
   display: inline-block;
-  transform: translateY(110%);
-  animation: intro-char var(--dur-base) var(--ease-out) calc(var(--i) * var(--stagger-char)) forwards;
+  opacity: 0;
+  filter: blur(0.3em);
+  transform: scale(1.18);
+  animation: intro-char calc(var(--dur-base) + var(--dur-instant)) var(--ease-out)
+    calc(var(--intro-name-at) + var(--d) * var(--intro-name-spread)) forwards;
 }
 
 .site-intro__tagline {
@@ -379,8 +486,34 @@ html[data-intro='play'] .site-intro {
   visibility: hidden;
 }
 
+@keyframes intro-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes intro-progress {
+  to {
+    transform: none;
+  }
+}
+
+@keyframes intro-fade-in {
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes intro-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
 @keyframes intro-char {
   to {
+    opacity: 1;
+    filter: none;
     transform: none;
   }
 }

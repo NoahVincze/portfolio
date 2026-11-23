@@ -4,9 +4,11 @@
  * - Motion reduced (system setting or footer toggle): no WebGL at all. The HTML heading
  *   is the still version of the hero.
  * - No WebGL support, or the scene fails to start: the HTML heading stays.
- * - Otherwise: after the page has loaded and the browser is idle, the scene module (and
- *   Three.js with it) is fetched and started. It stays alive across page navigations.
+ * - Otherwise: after the page has loaded, the first-visit intro (if any) is over and the
+ *   browser is idle, the scene module (and Three.js with it) is fetched and started. Waiting
+ *   for the intro keeps it smooth and lets the particles appear on the name it leaves behind. It stays alive across page navigations.
  */
+import { introFinished } from '../intro';
 import { isReduced } from '../preference';
 import type { HeroScene } from './scene';
 
@@ -36,7 +38,8 @@ function afterLoadWhenIdle(): Promise<void> {
 const yieldToBrowser = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
 function loadScene(canvas: HTMLCanvasElement): Promise<HeroScene | null> {
-  loading ??= afterLoadWhenIdle()
+  loading ??= introFinished
+    .then(afterLoadWhenIdle)
     .then(() => import('./scene'))
     .then(async ({ createHeroScene }) => {
       await yieldToBrowser();
